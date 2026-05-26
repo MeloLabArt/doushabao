@@ -10,7 +10,8 @@
 .
 ├── apps/
 │   └── web/          # Vue + Vite 前端应用 (@doushabao/web)
-├── packages/         # 共享库（可按需添加）
+├── packages/
+│   └── core/         # 共享 TypeScript 库 (@doushabao/core)
 ├── pnpm-workspace.yaml
 └── turbo.json
 ```
@@ -21,7 +22,7 @@
 
 ```bash
 pnpm install
-pnpm dev          # 启动 apps/web
+pnpm dev          # core (tsc --watch) + web (vite)，core 会先 build 一次
 pnpm build        # 构建所有包
 pnpm lint         #  lint 所有包
 pnpm test:unit    # 运行单元测试

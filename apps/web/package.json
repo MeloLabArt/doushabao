@@ -15,6 +15,7 @@
     "lint:eslint": "eslint . --fix --cache"
   },
   "dependencies": {
+    "@doushabao/core": "workspace:*",
     "@lucide/vue": "^1.16.0",
     "@tailwindcss/vite": "^4.3.0",
     "gsap": "^3.15.0",

@@ -11,6 +11,7 @@ export default defineConfig({
     host: true,
   },
   resolve: {
+    conditions: ["development", "import", "module", "browser", "default"],
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
