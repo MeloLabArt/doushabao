@@ -7,8 +7,13 @@ export const DEFAULT_OPENROUTER_HOST = 'https://openrouter.ai/api/v1'
 const emptyConfig = (): Config => ({
   host: DEFAULT_OPENROUTER_HOST,
   key: '',
-  model: '',
+  analysisModel: '',
+  editModel: '',
 })
+
+type StoredConfig = Partial<Config> & {
+  model?: string
+}
 
 export function loadConfig(): Config {
   const raw = localStorage.getItem(CONFIG_STORAGE_KEY)
@@ -17,11 +22,14 @@ export function loadConfig(): Config {
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<Config>
+    const parsed = JSON.parse(raw) as StoredConfig
+    const legacyModel = parsed.model ?? ''
+
     return {
       host: parsed.host ?? DEFAULT_OPENROUTER_HOST,
       key: parsed.key ?? '',
-      model: parsed.model ?? '',
+      analysisModel: parsed.analysisModel ?? legacyModel,
+      editModel: parsed.editModel ?? legacyModel,
     }
   } catch {
     return emptyConfig()

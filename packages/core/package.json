@@ -19,6 +19,9 @@
     "type-check": "tsc --noEmit",
     "dev": "tsc --watch"
   },
+  "dependencies": {
+    "@doushabao/agents": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "~6.0.0"
   }

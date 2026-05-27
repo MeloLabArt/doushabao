@@ -8,7 +8,8 @@ import { type Theme, applyTheme, loadTheme, saveTheme } from '@/lib/theme-storag
 const form = ref<Config>({
   host: DEFAULT_OPENROUTER_HOST,
   key: '',
-  model: '',
+  analysisModel: '',
+  editModel: '',
 })
 
 const theme = ref<Theme>('light')
@@ -55,7 +56,7 @@ async function handleSubmit() {
   <section class="mx-auto w-full max-w-xl p-6">
     <div class="mb-6">
       <h1 class="text-lg font-semibold text-app-foreground">设置</h1>
-      <p class="mt-1 text-sm text-app-muted">配置 OpenRouter API，用于 AI 图像生成。</p>
+      <p class="mt-1 text-sm text-app-muted">配置 OpenRouter API，分析模型与修图模型分开设置。</p>
     </div>
 
     <section class="mb-8 space-y-3">
@@ -116,16 +117,29 @@ async function handleSubmit() {
       </label>
 
       <label class="block space-y-1.5">
-        <span class="text-sm font-medium text-app-foreground">Model</span>
+        <span class="text-sm font-medium text-app-foreground">分析模型</span>
         <input
-          v-model="form.model"
+          v-model="form.analysisModel"
           type="text"
           required
           autocomplete="off"
           placeholder="google/gemini-2.5-flash-preview"
           :class="inputClass"
         />
-        <span class="text-xs text-app-subtle">OpenRouter 模型 ID，需支持图像输出。</span>
+        <span class="text-xs text-app-subtle">用于分析图片类型与不足，输出 JSON 报告，仅需文本/视觉理解能力。</span>
+      </label>
+
+      <label class="block space-y-1.5">
+        <span class="text-sm font-medium text-app-foreground">修图模型</span>
+        <input
+          v-model="form.editModel"
+          type="text"
+          required
+          autocomplete="off"
+          placeholder="google/gemini-2.5-flash-image-preview"
+          :class="inputClass"
+        />
+        <span class="text-xs text-app-subtle">用于根据分析结果与用户提示词生成修图结果，需支持图像输出。</span>
       </label>
 
       <div class="flex items-center gap-3 pt-1">

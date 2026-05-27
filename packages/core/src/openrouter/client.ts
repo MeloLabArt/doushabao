@@ -10,6 +10,8 @@ import { buildMessages } from "./build-messages";
 const DEFAULT_HOST = "https://openrouter.ai/api/v1";
 const DEFAULT_MODALITIES: ("image" | "text")[] = ["image", "text"];
 
+export type OpenRouterCredentials = Pick<Config, "host" | "key">;
+
 function normalizeHost(host: string): string {
   return host.replace(/\/+$/, "");
 }
@@ -35,15 +37,13 @@ function extractText(message: ChatCompletionResponse["choices"][number]["message
 export class OpenRouterClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
-  private readonly model: string;
 
-  constructor(config: Config) {
+  constructor(config: OpenRouterCredentials) {
     this.apiKey = config.key;
     this.baseUrl = normalizeHost(config.host || DEFAULT_HOST);
-    this.model = config.model;
   }
 
-  async chatCompletion(request: Omit<ChatCompletionRequest, "model">): Promise<ChatCompletionResponse> {
+  async chatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -51,7 +51,6 @@ export class OpenRouterClient {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: this.model,
         stream: false,
         ...request,
       }),
@@ -71,10 +70,12 @@ export class OpenRouterClient {
   }
 
   async generate(
+    model: string,
     messages: ChatCompletionRequest["messages"],
     options: GenerateOptions = {},
   ): Promise<GenerateResult> {
     const response = await this.chatCompletion({
+      model,
       messages,
       modalities: options.modalities ?? DEFAULT_MODALITIES,
       image_config: options.imageConfig,
@@ -96,7 +97,7 @@ export class OpenRouterClient {
   }
 }
 
-export function createOpenRouterClient(config: Config): OpenRouterClient {
+export function createOpenRouterClient(config: OpenRouterCredentials): OpenRouterClient {
   return new OpenRouterClient(config);
 }
 

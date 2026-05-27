@@ -50,9 +50,12 @@ export type ChatCompletionResponse = {
   };
 };
 
+import type { AgentMode } from "@doushabao/agents";
+
 export type GenerateOptions = {
   modalities?: ("image" | "text")[];
   imageConfig?: ImageConfig;
+  mode?: AgentMode;
   systemPrompt?: string;
 };
 

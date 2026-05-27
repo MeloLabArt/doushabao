@@ -16,7 +16,8 @@ describe('config-storage', () => {
     expect(loadConfig()).toEqual({
       host: DEFAULT_OPENROUTER_HOST,
       key: '',
-      model: '',
+      analysisModel: '',
+      editModel: '',
     })
   })
 
@@ -24,7 +25,8 @@ describe('config-storage', () => {
     const config = {
       host: 'https://openrouter.ai/api/v1',
       key: 'test-key',
-      model: 'google/gemini-2.5-flash-preview',
+      analysisModel: 'google/gemini-2.5-flash-preview',
+      editModel: 'google/gemini-2.5-flash-image-preview',
     }
 
     await saveConfig(config)
@@ -33,12 +35,31 @@ describe('config-storage', () => {
     expect(loadConfig()).toEqual(config)
   })
 
+  it('migrates legacy model field', () => {
+    localStorage.setItem(
+      CONFIG_STORAGE_KEY,
+      JSON.stringify({
+        host: 'https://openrouter.ai/api/v1',
+        key: 'test-key',
+        model: 'google/gemini-2.5-flash-preview',
+      }),
+    )
+
+    expect(loadConfig()).toEqual({
+      host: 'https://openrouter.ai/api/v1',
+      key: 'test-key',
+      analysisModel: 'google/gemini-2.5-flash-preview',
+      editModel: 'google/gemini-2.5-flash-preview',
+    })
+  })
+
   it('rejects invalid config', async () => {
     await expect(
       saveConfig({
         host: '',
         key: 'test-key',
-        model: 'google/gemini-2.5-flash-preview',
+        analysisModel: 'google/gemini-2.5-flash-preview',
+        editModel: 'google/gemini-2.5-flash-image-preview',
       }),
     ).rejects.toThrow('Config is invalid')
   })
