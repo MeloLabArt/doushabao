@@ -11,6 +11,7 @@
 ├── apps/
 │   └── web/          # Vue + Vite 前端应用 (@doushabao/web)
 ├── packages/
+│   ├── agents/       # Agent 编排与工具 (@doushabao/agents)
 │   └── core/         # 共享 TypeScript 库 (@doushabao/core)
 ├── pnpm-workspace.yaml
 └── turbo.json
@@ -22,7 +23,7 @@
 
 ```bash
 pnpm install
-pnpm dev          # core (tsc --watch) + web (vite)，core 会先 build 一次
+pnpm dev          # core + agents (tsc --watch) + web (vite)，workspace 库会先 build 一次
 pnpm build        # 构建所有包
 pnpm lint         #  lint 所有包
 pnpm test:unit    # 运行单元测试
