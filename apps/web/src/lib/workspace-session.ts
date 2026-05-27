@@ -10,12 +10,21 @@ import {
   saveWorkspace,
 } from '@/lib/workspace-storage'
 
+export const SETTINGS_TAB_ID = 'settings'
+
 const draftWorkspaces = new Map<string, Workspace>()
-const openWorkspaceIds = ref<string[]>([])
+const openTabIds = ref<string[]>([])
 export const dirtyWorkspaceIds = ref<Set<string>>(new Set())
 
+export const openTabs = computed(() => openTabIds.value)
+
+export function isSettingsTab(id: string): boolean {
+  return id === SETTINGS_TAB_ID
+}
+
 export const openWorkspaces = computed(() =>
-  openWorkspaceIds.value
+  openTabIds.value
+    .filter((id) => !isSettingsTab(id))
     .map((id) => getWorkspace(id))
     .filter((workspace): workspace is Workspace => workspace !== null),
 )
@@ -70,26 +79,38 @@ export function updateDraftWorkspace(workspace: Workspace): void {
 export function stageWorkspaceChanges(workspace: Workspace): void {
   draftWorkspaces.set(workspace.id, workspace)
   markWorkspaceDirty(workspace.id)
-  openWorkspaceIds.value = [...openWorkspaceIds.value]
+  openTabIds.value = [...openTabIds.value]
 }
 
 export function addOpenWorkspace(id: string): void {
-  if (openWorkspaceIds.value.includes(id)) {
+  if (openTabIds.value.includes(id)) {
     return
   }
 
-  openWorkspaceIds.value = [...openWorkspaceIds.value, id]
+  openTabIds.value = [...openTabIds.value, id]
+}
+
+export function addSettingsTab(): void {
+  if (openTabIds.value.includes(SETTINGS_TAB_ID)) {
+    return
+  }
+
+  openTabIds.value = [...openTabIds.value, SETTINGS_TAB_ID]
+}
+
+export function removeOpenTab(id: string): void {
+  openTabIds.value = openTabIds.value.filter((openId) => openId !== id)
 }
 
 export function removeOpenWorkspace(id: string): void {
-  openWorkspaceIds.value = openWorkspaceIds.value.filter((openId) => openId !== id)
+  removeOpenTab(id)
 }
 
 export async function persistWorkspace(workspace: Workspace): Promise<void> {
   await saveWorkspace(workspace)
   draftWorkspaces.delete(workspace.id)
   markWorkspaceClean(workspace.id)
-  openWorkspaceIds.value = [...openWorkspaceIds.value]
+  openTabIds.value = [...openTabIds.value]
 }
 
 export function discardWorkspace(id: string): void {
@@ -101,22 +122,34 @@ export function deleteSavedWorkspace(id: string): void {
   void deleteWorkspace(id)
 }
 
-export function closeWorkspaceTab(id: string): string | null {
-  const index = openWorkspaceIds.value.indexOf(id)
-  const nextId =
-    index >= 0
-      ? (openWorkspaceIds.value[index + 1] ?? openWorkspaceIds.value[index - 1] ?? null)
-      : null
+function getNextTabIdAfterClose(index: number): string | null {
+  if (index < 0) {
+    return null
+  }
 
-  removeOpenWorkspace(id)
-  discardWorkspace(id)
-  markWorkspaceClean(id)
+  return openTabIds.value[index + 1] ?? openTabIds.value[index - 1] ?? null
+}
+
+export function closeTab(id: string): string | null {
+  const index = openTabIds.value.indexOf(id)
+  const nextId = getNextTabIdAfterClose(index)
+
+  removeOpenTab(id)
+
+  if (!isSettingsTab(id)) {
+    discardWorkspace(id)
+    markWorkspaceClean(id)
+  }
 
   return nextId
 }
 
+export function closeWorkspaceTab(id: string): string | null {
+  return closeTab(id)
+}
+
 export function clearDraftWorkspaces(): void {
   draftWorkspaces.clear()
-  openWorkspaceIds.value = []
+  openTabIds.value = []
   dirtyWorkspaceIds.value = new Set()
 }

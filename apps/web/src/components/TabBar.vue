@@ -49,7 +49,7 @@ const emit = defineEmits<{
       <button
         type="button"
         class="inline-flex size-5 shrink-0 items-center justify-center rounded text-app-subtle transition-colors hover:bg-app-accent hover:text-app-foreground"
-        aria-label="关闭工作区"
+        aria-label="关闭标签页"
         @click.stop="emit('close', tab.id)"
       >
         <X :size="12" :stroke-width="2" />

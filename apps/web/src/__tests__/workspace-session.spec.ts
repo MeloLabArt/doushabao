@@ -2,15 +2,20 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import {
   addOpenWorkspace,
+  addSettingsTab,
   clearDraftWorkspaces,
+  closeTab,
   closeWorkspaceTab,
   createDraftWorkspace,
   deleteSavedWorkspace,
   getWorkspace,
   isDefaultWorkspace,
+  isSettingsTab,
   isWorkspaceDirty,
+  openTabs,
   openWorkspaces,
   persistWorkspace,
+  SETTINGS_TAB_ID,
   stageWorkspaceChanges,
 } from '../lib/workspace-session'
 import {
@@ -144,5 +149,25 @@ describe('workspace-session', () => {
       'workspace-3',
     ])
     expect(getWorkspace('workspace-2')).toBeNull()
+  })
+
+  it('tracks the settings tab alongside workspace tabs', () => {
+    createDraftWorkspace('workspace-1')
+    addSettingsTab()
+
+    expect(openTabs.value).toEqual(['workspace-1', SETTINGS_TAB_ID])
+    expect(isSettingsTab(SETTINGS_TAB_ID)).toBe(true)
+    expect(openWorkspaces.value.map((workspace) => workspace.id)).toEqual(['workspace-1'])
+  })
+
+  it('closes the settings tab without affecting workspaces', () => {
+    createDraftWorkspace('workspace-1')
+    addSettingsTab()
+
+    const nextId = closeTab(SETTINGS_TAB_ID)
+
+    expect(nextId).toBe('workspace-1')
+    expect(openTabs.value).toEqual(['workspace-1'])
+    expect(getWorkspace('workspace-1')).toBeTruthy()
   })
 })

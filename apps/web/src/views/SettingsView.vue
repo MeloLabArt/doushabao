@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import type { Config } from '@doushabao/core'
-import { ArrowLeft } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 
 import { DEFAULT_OPENROUTER_HOST, loadConfig, saveConfig } from '@/lib/config-storage'
 import { type Theme, applyTheme, loadTheme, saveTheme } from '@/lib/theme-storage'
-
-const router = useRouter()
 
 const form = ref<Config>({
   host: DEFAULT_OPENROUTER_HOST,
@@ -33,10 +29,6 @@ onMounted(() => {
   theme.value = loadTheme()
 })
 
-function goHome() {
-  router.push('/')
-}
-
 function setTheme(nextTheme: Theme) {
   theme.value = nextTheme
   saveTheme(nextTheme)
@@ -61,15 +53,6 @@ async function handleSubmit() {
 
 <template>
   <section class="mx-auto w-full max-w-xl p-6">
-    <button
-      type="button"
-      class="mb-4 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
-      @click="goHome"
-    >
-      <ArrowLeft :size="16" :stroke-width="1.75" />
-      返回主工作区
-    </button>
-
     <div class="mb-6">
       <h1 class="text-lg font-semibold text-app-foreground">设置</h1>
       <p class="mt-1 text-sm text-app-muted">配置 OpenRouter API，用于 AI 图像生成。</p>

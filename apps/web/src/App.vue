@@ -12,12 +12,15 @@ import { openNewWorkspace } from '@/lib/open-new-workspace'
 import { handleAppShortcut } from '@/lib/app-shortcuts'
 import {
   addOpenWorkspace,
-  closeWorkspaceTab,
+  addSettingsTab,
+  closeTab,
   dirtyWorkspaceIds,
   getWorkspace,
+  isSettingsTab,
   isWorkspaceDirty,
-  openWorkspaces,
+  openTabs,
   persistWorkspace,
+  SETTINGS_TAB_ID,
 } from '@/lib/workspace-session'
 import { DEFAULT_WORKSPACE_TITLE } from '@/lib/workspace-storage'
 import type { Workspace } from '@/types/workspace'
@@ -33,21 +36,46 @@ const isSavingWorkspace = ref(false)
 const sidebarVisible = ref(true)
 const rightSidebarVisible = ref(true)
 
-const workspaceTabs = computed(() =>
-  openWorkspaces.value.map((workspace) => ({
-    id: workspace.id,
-    title: workspace.title,
-    isDirty: isWorkspaceDirty(workspace.id),
-  })),
+const appTabs = computed(() =>
+  openTabs.value.flatMap((id) => {
+    if (isSettingsTab(id)) {
+      return [{ id, title: '设置', isDirty: false }]
+    }
+
+    const workspace = getWorkspace(id)
+    if (!workspace) {
+      return []
+    }
+
+    return [
+      {
+        id,
+        title: workspace.title,
+        isDirty: isWorkspaceDirty(id),
+      },
+    ]
+  }),
 )
+
+const activeTabId = computed(() => {
+  if (route.name === 'settings') {
+    return SETTINGS_TAB_ID
+  }
+
+  if (route.name === 'workspace' && typeof route.params.workspaceId === 'string') {
+    return route.params.workspaceId
+  }
+
+  const tabs = appTabs.value
+  return tabs.length > 0 ? tabs[tabs.length - 1]!.id : ''
+})
 
 const activeWorkspaceId = computed(() => {
   if (route.name === 'workspace' && typeof route.params.workspaceId === 'string') {
     return route.params.workspaceId
   }
 
-  const tabs = workspaceTabs.value
-  return tabs.length > 0 ? tabs[tabs.length - 1]!.id : ''
+  return ''
 })
 
 const canSaveActiveWorkspace = computed(() => {
@@ -65,6 +93,7 @@ router.beforeEach((to, from) => {
   }
 
   if (to.name === 'settings') {
+    addSettingsTab()
     transitionDirection.value = 'forward'
   } else if (from.name === 'settings') {
     transitionDirection.value = 'back'
@@ -72,7 +101,11 @@ router.beforeEach((to, from) => {
 })
 
 function openSettings() {
-  router.push('/settings')
+  addSettingsTab()
+
+  if (route.name !== 'settings') {
+    router.push('/settings')
+  }
 }
 
 function toggleSidebar() {
@@ -162,14 +195,19 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onDocumentKeyDown)
 })
 
-function selectWorkspace(workspaceId: string) {
-  if (workspaceId === activeWorkspaceId.value) {
+function selectTab(tabId: string) {
+  if (tabId === activeTabId.value) {
+    return
+  }
+
+  if (isSettingsTab(tabId)) {
+    void router.push('/settings')
     return
   }
 
   void router.push({
     name: 'workspace',
-    params: { workspaceId },
+    params: { workspaceId: tabId },
   })
 }
 
@@ -186,20 +224,35 @@ function openSavedProject(workspaceId: string) {
   })
 }
 
-function closeWorkspace(workspaceId: string) {
-  const nextWorkspaceId = closeWorkspaceTab(workspaceId)
+function navigateAfterCloseTab(nextTabId: string | null) {
+  if (nextTabId) {
+    if (isSettingsTab(nextTabId)) {
+      void router.replace('/settings')
+      return
+    }
 
-  if (nextWorkspaceId) {
     void router.replace({
       name: 'workspace',
-      params: { workspaceId: nextWorkspaceId },
+      params: { workspaceId: nextTabId },
     })
     return
   }
 
-  if (route.name === 'workspace') {
-    void router.replace('/')
+  void router.replace('/')
+}
+
+function closeAppTab(tabId: string) {
+  const isClosingActiveTab =
+    (route.name === 'settings' && tabId === SETTINGS_TAB_ID) ||
+    (route.name === 'workspace' && route.params.workspaceId === tabId)
+
+  const nextTabId = closeTab(tabId)
+
+  if (!isClosingActiveTab) {
+    return
   }
+
+  navigateAfterCloseTab(nextTabId)
 }
 </script>
 
@@ -222,11 +275,11 @@ function closeWorkspace(workspaceId: string) {
       />
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         <TabBar
-          v-if="workspaceTabs.length"
-          :tabs="workspaceTabs"
-          :active-tab-id="activeWorkspaceId"
-          @select="selectWorkspace"
-          @close="closeWorkspace"
+          v-if="appTabs.length"
+          :tabs="appTabs"
+          :active-tab-id="activeTabId"
+          @select="selectTab"
+          @close="closeAppTab"
         />
         <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-app-elevated">
           <RouteTransition :direction="transitionDirection" />
