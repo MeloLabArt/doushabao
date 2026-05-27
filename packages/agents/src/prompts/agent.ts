@@ -9,5 +9,5 @@ export const AGENT_ANALYSIS_JSON_SCHEMA = `{
     }
   ],
   "summary": "对图片整体质量与主要问题的简要总结",
-  "editPrompt": "给修图模型的具体修改指令，清晰、可执行，中文"
+  "editPrompt": "给修图模型的具体修改指令：先写保留项，再写1～2项轻微调整，强调自然真实、避免过度处理，中文"
 }`;
