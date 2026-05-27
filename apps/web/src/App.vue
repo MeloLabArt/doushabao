@@ -5,9 +5,11 @@ import { useRoute, useRouter } from 'vue-router'
 import RouteTransition from '@/components/RouteTransition.vue'
 import SaveWorkspaceDialog from '@/components/SaveWorkspaceDialog.vue'
 import SavedProjectSidebar from '@/components/SavedProjectSidebar.vue'
+import WorkspaceRightSidebar from '@/components/WorkspaceRightSidebar.vue'
 import TabBar from '@/components/TabBar.vue'
 import TopBar from '@/components/TopBar.vue'
 import { openNewWorkspace } from '@/lib/open-new-workspace'
+import { handleAppShortcut } from '@/lib/app-shortcuts'
 import {
   addOpenWorkspace,
   closeWorkspaceTab,
@@ -29,6 +31,7 @@ const saveTargetWorkspace = ref<Workspace | null>(null)
 const saveError = ref('')
 const isSavingWorkspace = ref(false)
 const sidebarVisible = ref(true)
+const rightSidebarVisible = ref(true)
 
 const workspaceTabs = computed(() =>
   openWorkspaces.value.map((workspace) => ({
@@ -74,6 +77,10 @@ function openSettings() {
 
 function toggleSidebar() {
   sidebarVisible.value = !sidebarVisible.value
+}
+
+function toggleRightSidebar() {
+  rightSidebarVisible.value = !rightSidebarVisible.value
 }
 
 function handleFileAction(action: 'new-workspace' | 'open' | 'save') {
@@ -136,12 +143,15 @@ function cancelSaveWorkspace(): void {
 }
 
 function onDocumentKeyDown(event: KeyboardEvent): void {
-  if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 's') {
-    return
+  if (
+    handleAppShortcut(event, {
+      save: requestSaveActiveWorkspace,
+      toggleSidebar,
+      toggleRightSidebar,
+    })
+  ) {
+    event.preventDefault()
   }
-
-  event.preventDefault()
-  requestSaveActiveWorkspace()
 }
 
 onMounted(() => {
@@ -198,8 +208,10 @@ function closeWorkspace(workspaceId: string) {
     <TopBar
       :save-enabled="canSaveActiveWorkspace"
       :sidebar-visible="sidebarVisible"
+      :right-sidebar-visible="rightSidebarVisible"
       @settings-click="openSettings"
       @toggle-sidebar="toggleSidebar"
+      @toggle-right-sidebar="toggleRightSidebar"
       @file-action="handleFileAction"
     />
     <div class="flex min-h-0 flex-1">
@@ -220,6 +232,10 @@ function closeWorkspace(workspaceId: string) {
           <RouteTransition :direction="transitionDirection" />
         </main>
       </div>
+      <WorkspaceRightSidebar
+        v-show="rightSidebarVisible"
+        :active-workspace-id="activeWorkspaceId"
+      />
     </div>
 
     <SaveWorkspaceDialog

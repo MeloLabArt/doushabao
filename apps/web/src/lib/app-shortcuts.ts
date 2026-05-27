@@ -1,0 +1,32 @@
+export type AppShortcutActions = {
+  save: () => void
+  toggleSidebar: () => void
+  toggleRightSidebar: () => void
+}
+
+type ShortcutEvent = Pick<KeyboardEvent, 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey' | 'key'>
+
+export function handleAppShortcut(event: ShortcutEvent, actions: AppShortcutActions): boolean {
+  if (!(event.metaKey || event.ctrlKey)) {
+    return false
+  }
+
+  const key = event.key.toLowerCase()
+
+  if (key === 's') {
+    actions.save()
+    return true
+  }
+
+  if (key === 'b' && !event.shiftKey && !event.altKey) {
+    actions.toggleSidebar()
+    return true
+  }
+
+  if (key === 'b' && event.shiftKey && !event.altKey) {
+    actions.toggleRightSidebar()
+    return true
+  }
+
+  return false
+}

@@ -8,6 +8,7 @@ describe('TopBar save menu', () => {
   const defaultProps = {
     saveEnabled: false,
     sidebarVisible: true,
+    rightSidebarVisible: true,
   }
 
   async function openFileMenu(wrapper: ReturnType<typeof mount>) {
@@ -72,5 +73,69 @@ describe('TopBar save menu', () => {
     await wrapper.get('button[aria-label="隐藏侧边栏"]').trigger('click')
 
     expect(wrapper.emitted('toggleSidebar')).toEqual([[]])
+  })
+
+  it('emits toggleRightSidebar when clicking right sidebar button', async () => {
+    const wrapper = mount(TopBar, {
+      props: defaultProps,
+    })
+
+    await wrapper.get('button[aria-label="隐藏编辑面板"]').trigger('click')
+
+    expect(wrapper.emitted('toggleRightSidebar')).toEqual([[]])
+  })
+})
+
+describe('TopBar view menu', () => {
+  const defaultProps = {
+    saveEnabled: false,
+    sidebarVisible: true,
+    rightSidebarVisible: true,
+  }
+
+  async function openViewMenu(wrapper: ReturnType<typeof mount>) {
+    const viewButton = wrapper.findAll('button').find((button) => button.text() === '视图')
+    await viewButton!.trigger('click')
+    await wrapper.vm.$nextTick()
+  }
+
+  it('shows sidebar shortcuts in view menu', async () => {
+    const wrapper = mount(TopBar, {
+      props: defaultProps,
+    })
+
+    await openViewMenu(wrapper)
+
+    const menuText = wrapper.get('[role="menu"]').text()
+    expect(menuText).toContain('项目栏')
+    expect(menuText).toContain('编辑面板')
+    expect(menuText).toMatch(/⌘B|Ctrl\+B/)
+    expect(menuText).toMatch(/⌘⇧B|Ctrl\+Shift\+B/)
+  })
+
+  it('emits toggleSidebar from view menu', async () => {
+    const wrapper = mount(TopBar, {
+      props: defaultProps,
+    })
+
+    await openViewMenu(wrapper)
+
+    const sidebarItem = wrapper
+      .findAll('[role="menuitemcheckbox"]')
+      .find((item) => item.text().includes('项目栏'))
+    await sidebarItem!.trigger('click')
+
+    expect(wrapper.emitted('toggleSidebar')).toEqual([[]])
+  })
+
+  it('shows shortcut badges on sidebar toggle buttons', () => {
+    const wrapper = mount(TopBar, {
+      props: defaultProps,
+    })
+
+    const badges = wrapper.findAll('kbd')
+    expect(badges.length).toBeGreaterThanOrEqual(2)
+    expect(badges.some((badge) => badge.text().match(/⌘B|Ctrl\+B/))).toBe(true)
+    expect(badges.some((badge) => badge.text().match(/⌘⇧B|Ctrl\+Shift\+B/))).toBe(true)
   })
 })

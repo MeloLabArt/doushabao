@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
-import { PanelLeft, PanelLeftClose, Settings } from '@lucide/vue'
+import { Check, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose, Settings } from '@lucide/vue'
 
-const menuItems = ['编辑', '视图', '帮助'] as const
+const navMenuItems = ['编辑', '帮助'] as const
 
 const fileMenuItems = [
   { id: 'new-workspace', label: '新建工作区', dividerAfter: true },
@@ -10,47 +10,88 @@ const fileMenuItems = [
   { id: 'save', label: '保存', shortcut: true },
 ] as const
 
+const viewMenuItems = [
+  { id: 'toggle-sidebar', label: '项目栏', shortcut: 'left' },
+  { id: 'toggle-right-sidebar', label: '编辑面板', shortcut: 'right' },
+] as const
+
 type FileMenuAction = (typeof fileMenuItems)[number]['id']
+type ViewMenuAction = (typeof viewMenuItems)[number]['id']
 
 const props = defineProps<{
   saveEnabled: boolean
   sidebarVisible: boolean
+  rightSidebarVisible: boolean
 }>()
 
 const emit = defineEmits<{
   settingsClick: []
   toggleSidebar: []
-  menuClick: [menu: (typeof menuItems)[number]]
+  toggleRightSidebar: []
+  menuClick: [menu: (typeof navMenuItems)[number]]
   fileAction: [action: FileMenuAction]
 }>()
 
 const fileMenuOpen = ref(false)
+const viewMenuOpen = ref(false)
 const fileMenuRef = ref<HTMLElement | null>(null)
-const saveShortcutLabel = /Mac|iPhone|iPad/i.test(navigator.userAgent) ? '⌘S' : 'Ctrl+S'
+const viewMenuRef = ref<HTMLElement | null>(null)
+const isMac = /Mac|iPhone|iPad/i.test(navigator.userAgent)
+const saveShortcutLabel = isMac ? '⌘S' : 'Ctrl+S'
+const leftSidebarShortcutLabel = isMac ? '⌘B' : 'Ctrl+B'
+const rightSidebarShortcutLabel = isMac ? '⌘⇧B' : 'Ctrl+Shift+B'
+
+const shortcutBadgeClass =
+  'rounded border border-app-border bg-app px-1 py-0.5 text-[10px] font-normal leading-none text-app-subtle'
+
+function shortcutLabelForViewItem(shortcut: 'left' | 'right'): string {
+  return shortcut === 'left' ? leftSidebarShortcutLabel : rightSidebarShortcutLabel
+}
+
+function isViewItemChecked(id: ViewMenuAction): boolean {
+  return id === 'toggle-sidebar' ? props.sidebarVisible : props.rightSidebarVisible
+}
+
+function closeAllMenus() {
+  fileMenuOpen.value = false
+  viewMenuOpen.value = false
+}
 
 function toggleFileMenu() {
+  viewMenuOpen.value = false
   fileMenuOpen.value = !fileMenuOpen.value
 }
 
-function closeFileMenu() {
+function toggleViewMenu() {
   fileMenuOpen.value = false
+  viewMenuOpen.value = !viewMenuOpen.value
 }
 
 function onFileAction(action: FileMenuAction) {
   emit('fileAction', action)
-  closeFileMenu()
+  closeAllMenus()
+}
+
+function onViewAction(action: ViewMenuAction) {
+  if (action === 'toggle-sidebar') {
+    emit('toggleSidebar')
+  } else {
+    emit('toggleRightSidebar')
+  }
+
+  closeAllMenus()
 }
 
 function onDocumentPointerDown(event: PointerEvent) {
-  if (!fileMenuOpen.value) {
-    return
+  const target = event.target as Node
+
+  if (fileMenuOpen.value && !fileMenuRef.value?.contains(target)) {
+    fileMenuOpen.value = false
   }
 
-  if (fileMenuRef.value?.contains(event.target as Node)) {
-    return
+  if (viewMenuOpen.value && !viewMenuRef.value?.contains(target)) {
+    viewMenuOpen.value = false
   }
-
-  closeFileMenu()
 }
 
 onMounted(() => document.addEventListener('pointerdown', onDocumentPointerDown))
@@ -122,8 +163,59 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
           </div>
         </div>
 
+        <div ref="viewMenuRef" class="relative">
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1 text-sm transition-colors"
+            :class="
+              viewMenuOpen
+                ? 'bg-app-accent text-app-foreground'
+                : 'text-app-muted hover:bg-app-accent hover:text-app-foreground'
+            "
+            aria-haspopup="menu"
+            :aria-expanded="viewMenuOpen"
+            @click.stop="toggleViewMenu"
+          >
+            视图
+          </button>
+
+          <div
+            v-if="viewMenuOpen"
+            class="absolute left-0 top-full z-50 min-w-44 pt-1"
+            role="presentation"
+            @pointerdown.stop
+          >
+            <div
+              class="overflow-hidden rounded-lg border border-app-border bg-app-elevated py-1 shadow-lg shadow-black/10"
+              role="menu"
+            >
+              <button
+                v-for="item in viewMenuItems"
+                :key="item.id"
+                type="button"
+                class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-app-foreground transition-colors hover:bg-app-accent"
+                role="menuitemcheckbox"
+                :aria-checked="isViewItemChecked(item.id)"
+                @click="onViewAction(item.id)"
+              >
+                <Check
+                  v-if="isViewItemChecked(item.id)"
+                  :size="14"
+                  :stroke-width="2"
+                  class="shrink-0 text-app-muted"
+                />
+                <span v-else class="inline-block w-3.5 shrink-0" aria-hidden="true" />
+                <span>{{ item.label }}</span>
+                <span class="ml-auto pl-4 text-xs text-app-subtle">
+                  {{ shortcutLabelForViewItem(item.shortcut) }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <button
-          v-for="menu in menuItems"
+          v-for="menu in navMenuItems"
           :key="menu"
           type="button"
           class="rounded-md px-2.5 py-1 text-sm text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
@@ -134,16 +226,29 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
       </div>
     </nav>
 
-    <div class="flex items-center gap-0.5">
+    <div class="flex items-center gap-1">
       <button
         type="button"
-        class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
+        class="inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
         :aria-label="props.sidebarVisible ? '隐藏侧边栏' : '显示侧边栏'"
         :aria-pressed="props.sidebarVisible"
         @click="emit('toggleSidebar')"
       >
         <PanelLeftClose v-if="props.sidebarVisible" :size="16" :stroke-width="1.75" />
         <PanelLeft v-else :size="16" :stroke-width="1.75" />
+        <kbd :class="shortcutBadgeClass">{{ leftSidebarShortcutLabel }}</kbd>
+      </button>
+
+      <button
+        type="button"
+        class="inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
+        :aria-label="props.rightSidebarVisible ? '隐藏编辑面板' : '显示编辑面板'"
+        :aria-pressed="props.rightSidebarVisible"
+        @click="emit('toggleRightSidebar')"
+      >
+        <PanelRightClose v-if="props.rightSidebarVisible" :size="16" :stroke-width="1.75" />
+        <PanelRight v-else :size="16" :stroke-width="1.75" />
+        <kbd :class="shortcutBadgeClass">{{ rightSidebarShortcutLabel }}</kbd>
       </button>
 
       <button
