@@ -16,24 +16,24 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="flex h-9 shrink-0 items-end gap-0.5 overflow-x-auto border-b border-app-border bg-app px-2"
+    class="flex h-9 shrink-0 items-stretch gap-0.5 overflow-x-auto overflow-y-hidden border-b border-app-border bg-app px-2"
     role="tablist"
   >
     <div
       v-for="tab in tabs"
       :key="tab.id"
       role="tab"
-      class="relative -mb-px flex max-w-48 shrink-0 items-center gap-1 rounded-t-md border pl-3 pr-1.5 py-1.5 transition-colors"
+      class="flex h-full max-w-48 shrink-0 items-center gap-1 rounded-t-md border border-b-0 pl-3 pr-1.5 transition-colors"
       :class="
         tab.id === activeTabId
-          ? 'border-app-border border-b-app bg-app text-app-foreground'
+          ? 'border-app-border bg-app-elevated text-app-foreground'
           : 'border-transparent text-app-muted hover:bg-app-accent hover:text-app-foreground'
       "
       :aria-selected="tab.id === activeTabId"
     >
       <button
         type="button"
-        class="min-w-0 truncate text-sm"
+        class="min-w-0 truncate text-sm leading-none"
         @click="emit('select', tab.id)"
       >
         {{ tab.title }}
