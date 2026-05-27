@@ -6,6 +6,7 @@ import {
   GenerateResult,
 } from "../types/openrouter";
 import { buildMessages } from "./build-messages";
+import { formatOpenRouterError } from "./format-openrouter-error";
 
 const DEFAULT_HOST = "https://openrouter.ai/api/v1";
 const IMAGE_OUTPUT_MODALITIES: ("image" | "text")[] = ["image"];
@@ -13,6 +14,23 @@ const IMAGE_TEXT_OUTPUT_MODALITIES: ("image" | "text")[] = ["image", "text"];
 
 function isModalityError(message: string): boolean {
   return message.toLowerCase().includes("output modalities");
+}
+
+function isRetryableProviderError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("provider returned error") ||
+    lower.includes("rate limit") ||
+    lower.includes("resource exhausted") ||
+    lower.includes("temporarily unavailable") ||
+    lower.includes("overloaded")
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 export type OpenRouterCredentials = Pick<Config, "host" | "key">;
@@ -64,11 +82,15 @@ export class OpenRouterClient {
     const payload = (await response.json()) as ChatCompletionResponse;
 
     if (!response.ok) {
-      throw new Error(payload.error?.message ?? `OpenRouter request failed with status ${response.status}`);
+      throw new Error(
+        payload.error
+          ? formatOpenRouterError(payload.error)
+          : `OpenRouter 请求失败（HTTP ${response.status}）`,
+      );
     }
 
     if (payload.error?.message) {
-      throw new Error(payload.error.message);
+      throw new Error(formatOpenRouterError(payload.error));
     }
 
     return payload;
@@ -131,19 +153,28 @@ export class OpenRouterClient {
     let lastError: Error | null = null;
 
     for (const modalities of modalityCandidates) {
-      try {
-        return await this.generateWithModalities(model, messages, options, modalities);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (!isModalityError(message)) {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          return await this.generateWithModalities(model, messages, options, modalities);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+
+          if (isModalityError(message)) {
+            lastError = error instanceof Error ? error : new Error(message);
+            break;
+          }
+
+          if (attempt === 0 && isRetryableProviderError(message)) {
+            await sleep(1500);
+            continue;
+          }
+
           throw error;
         }
-
-        lastError = error instanceof Error ? error : new Error(message);
       }
     }
 
-    throw lastError ?? new Error("OpenRouter image generation failed");
+    throw lastError ?? new Error("OpenRouter 图片生成失败");
   }
 
   /** @deprecated Use generateText or generateImage instead. */
