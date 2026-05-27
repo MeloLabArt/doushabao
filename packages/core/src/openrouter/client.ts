@@ -13,7 +13,29 @@ const IMAGE_OUTPUT_MODALITIES: ("image" | "text")[] = ["image"];
 const IMAGE_TEXT_OUTPUT_MODALITIES: ("image" | "text")[] = ["image", "text"];
 
 function isModalityError(message: string): boolean {
-  return message.toLowerCase().includes("output modalities");
+  const lower = message.toLowerCase();
+  return lower.includes("output modalities") || lower.includes("requested output modalities");
+}
+
+function modalitiesKey(modalities: ("image" | "text")[]): string {
+  return modalities.slice().sort().join(",");
+}
+
+function buildModalityCandidates(explicit?: ("image" | "text")[]): ("image" | "text")[][] {
+  const defaults: ("image" | "text")[][] = [IMAGE_OUTPUT_MODALITIES, IMAGE_TEXT_OUTPUT_MODALITIES];
+  const candidates: ("image" | "text")[][] = [];
+
+  if (explicit?.length) {
+    candidates.push(explicit);
+  }
+
+  for (const fallback of defaults) {
+    if (!candidates.some((item) => modalitiesKey(item) === modalitiesKey(fallback))) {
+      candidates.push(fallback);
+    }
+  }
+
+  return candidates;
 }
 
 function isRetryableProviderError(message: string): boolean {
@@ -145,11 +167,7 @@ export class OpenRouterClient {
     messages: ChatCompletionRequest["messages"],
     options: GenerateOptions = {},
   ): Promise<GenerateResult> {
-    if (options.modalities?.length) {
-      return this.generateWithModalities(model, messages, options, options.modalities);
-    }
-
-    const modalityCandidates = [IMAGE_OUTPUT_MODALITIES, IMAGE_TEXT_OUTPUT_MODALITIES];
+    const modalityCandidates = buildModalityCandidates(options.modalities);
     let lastError: Error | null = null;
 
     for (const modalities of modalityCandidates) {

@@ -7,7 +7,12 @@ import {
 import { InitConfig } from "./config";
 import { InputContent } from "./input";
 import { buildMessages, createOpenRouterClient } from "./openrouter/client";
-import { readImageDimensions, resizeImageToDimensions, type ImageDimensions } from "./openrouter/image-dimensions";
+import {
+  buildImageConfigForDimensions,
+  readImageDimensions,
+  resizeImageToDimensions,
+  type ImageDimensions,
+} from "./openrouter/image-dimensions";
 import { prepareImageForApi } from "./openrouter/prepare-image-for-api";
 import { Config } from "./types/config";
 import { Content, ContentStyle } from "./types/content";
@@ -23,13 +28,15 @@ export type AgentRunResult = {
 
 function buildEditPrompt(analysis: AgentImageAnalysis, dimensions: ImageDimensions): string {
   return [
-    "【任务】在原图底片上做局部摄影后期，禁止整图重绘、禁止改变构图/人物样貌/物体。",
+    "【任务】对消息中附带的输入图做编辑并输出编辑后的同一张图，不是根据文字另画一张相似的新图。",
+    "输入图是待修底片：人物身份、五官、发型、衣着、物体种类与数量、构图、透视、背景结构必须与输入图一致。",
+    "禁止整图重绘、禁止换脸、禁止替换场景或季节；仅做指令范围内的极轻微摄影后期。",
     "",
     "修图指令：",
     analysis.editPrompt.trim(),
     "",
-    `尺寸要求：输出必须与原图完全一致，宽 ${dimensions.width} × 高 ${dimensions.height} 像素，不得改变宽高比、画布大小或裁切比例。`,
-    "成片应与原图在主体、构图、人物身份上无法区分是否为另一张图，仅允许指令范围内的极轻微差异。",
+    `【尺寸硬性要求】输出图片必须为宽 ${dimensions.width} × 高 ${dimensions.height} 像素（与原图完全相同）。禁止裁切、加边、拉伸、压缩或任何导致宽高比/分辨率变化的处理。`,
+    "若指令与保真冲突，以保真原图为准并尽量少改。",
   ].join("\n");
 }
 
@@ -89,12 +96,18 @@ export async function runAgent(
     },
   ];
 
-  const editMessages = buildMessages(editContents, validatedStyles, getEditSystemPrompt());
+  const editMessages = buildMessages(editContents, validatedStyles, getEditSystemPrompt(), {
+    imageFirst: true,
+    imageDetail: "high",
+  });
   let editResult;
   try {
     editResult = await client.generateImage(validatedConfig.editModel, editMessages, {
-      imageConfig: options.imageConfig,
-      modalities: options.modalities,
+      imageConfig: {
+        ...buildImageConfigForDimensions(sourceDimensions),
+        ...options.imageConfig,
+      },
+      ...(options.modalities ? { modalities: options.modalities } : {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

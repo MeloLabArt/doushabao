@@ -2,7 +2,11 @@ import { getSystemPrompt } from "@doushabao/agents";
 import { InitConfig } from "./config";
 import { InputContent } from "./input";
 import { buildMessages, createOpenRouterClient } from "./openrouter/client";
-import { readImageDimensions, resizeImageToDimensions } from "./openrouter/image-dimensions";
+import {
+  buildImageConfigForDimensions,
+  readImageDimensions,
+  resizeImageToDimensions,
+} from "./openrouter/image-dimensions";
 import { prepareImageForApi } from "./openrouter/prepare-image-for-api";
 import { Config } from "./types/config";
 import { Content, ContentStyle } from "./types/content";
@@ -34,8 +38,17 @@ export async function generateImage(
   const apiImage = await prepareImageForApi(sourceContent.image);
   const apiContents: Content[] = [{ ...sourceContent, image: apiImage }];
   const client = createOpenRouterClient(validatedConfig);
-  const messages = buildMessages(apiContents, validatedStyles, resolveSystemPrompt(options));
-  const result = await client.generateImage(validatedConfig.editModel, messages, options);
+  const messages = buildMessages(apiContents, validatedStyles, resolveSystemPrompt(options), {
+    imageFirst: true,
+    imageDetail: "high",
+  });
+  const result = await client.generateImage(validatedConfig.editModel, messages, {
+    ...options,
+    imageConfig: {
+      ...buildImageConfigForDimensions(sourceDimensions),
+      ...options.imageConfig,
+    },
+  });
 
   const generatedImage = result.images[0];
   if (!generatedImage) {
