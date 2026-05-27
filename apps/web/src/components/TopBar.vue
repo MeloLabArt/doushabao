@@ -30,24 +30,29 @@ function closeFileMenu() {
 }
 
 function onFileAction(action: FileMenuAction) {
-  closeFileMenu()
   emit('fileAction', action)
+  closeFileMenu()
 }
 
-function onDocumentClick(event: MouseEvent) {
+function onDocumentPointerDown(event: PointerEvent) {
+  if (!fileMenuOpen.value) {
+    return
+  }
+
   if (fileMenuRef.value?.contains(event.target as Node)) {
     return
   }
+
   closeFileMenu()
 }
 
-onMounted(() => document.addEventListener('click', onDocumentClick))
-onUnmounted(() => document.removeEventListener('click', onDocumentClick))
+onMounted(() => document.addEventListener('pointerdown', onDocumentPointerDown))
+onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerDown))
 </script>
 
 <template>
   <header
-    class="flex h-10 shrink-0 items-center justify-between border-b border-neutral-200/80 bg-neutral-50/80 px-3 backdrop-blur-sm"
+    class="relative z-50 flex h-10 shrink-0 items-center justify-between border-b border-neutral-200/80 bg-neutral-50/80 px-3 backdrop-blur-sm"
   >
     <nav class="flex min-w-0 items-center gap-3">
       <span class="shrink-0 text-sm font-semibold tracking-tight text-neutral-900">豆沙包</span>
@@ -71,24 +76,30 @@ onUnmounted(() => document.removeEventListener('click', onDocumentClick))
 
           <div
             v-if="fileMenuOpen"
-            class="absolute left-0 top-[calc(100%+4px)] z-50 min-w-36 overflow-hidden rounded-lg border border-neutral-200/90 bg-white py-1 shadow-lg shadow-neutral-900/10"
-            role="menu"
+            class="absolute left-0 top-full z-50 min-w-36 pt-1"
+            role="presentation"
+            @pointerdown.stop
           >
-            <template v-for="item in fileMenuItems" :key="item.id">
-              <button
-                type="button"
-                class="flex w-full items-center px-3 py-1.5 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
-                role="menuitem"
-                @click="onFileAction(item.id)"
-              >
-                {{ item.label }}
-              </button>
-              <div
-                v-if="item.dividerAfter"
-                class="my-1 border-t border-neutral-200/80"
-                role="separator"
-              />
-            </template>
+            <div
+              class="overflow-hidden rounded-lg border border-neutral-200/90 bg-white py-1 shadow-lg shadow-neutral-900/10"
+              role="menu"
+            >
+              <template v-for="item in fileMenuItems" :key="item.id">
+                <button
+                  type="button"
+                  class="flex w-full items-center px-3 py-1.5 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+                  role="menuitem"
+                  @click="onFileAction(item.id)"
+                >
+                  {{ item.label }}
+                </button>
+                <div
+                  v-if="'dividerAfter' in item && item.dividerAfter"
+                  class="my-1 border-t border-neutral-200/80"
+                  role="separator"
+                />
+              </template>
+            </div>
           </div>
         </div>
 
