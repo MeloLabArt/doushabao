@@ -87,11 +87,25 @@ function zoomAt(clientX: number, clientY: number, delta: number): void {
 
 function onWheel(event: WheelEvent): void {
   event.preventDefault()
+
+  // 触控板捏合缩放会带上 ctrl/meta；普通双指滑动为像素级 delta，用于平移
+  if (event.ctrlKey || event.metaKey) {
+    zoomAt(event.clientX, event.clientY, event.deltaY)
+    return
+  }
+
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PIXEL) {
+    translateX.value -= event.deltaX
+    translateY.value -= event.deltaY
+    return
+  }
+
   zoomAt(event.clientX, event.clientY, event.deltaY)
 }
 
 function onPointerDown(event: PointerEvent): void {
-  if (event.button !== 1) {
+  // 左键拖拽（触控板/鼠标）与中键拖拽均可平移
+  if (event.button !== 0 && event.button !== 1) {
     return
   }
 
@@ -153,7 +167,7 @@ watch(
   <div
     ref="viewportRef"
     class="relative h-full w-full touch-none overflow-hidden select-none"
-    :class="isPanning ? 'cursor-grabbing' : ''"
+    :class="isPanning ? 'cursor-grabbing' : 'cursor-grab'"
     @wheel.prevent="onWheel"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
