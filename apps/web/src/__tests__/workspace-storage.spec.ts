@@ -6,15 +6,18 @@ import {
   WORKSPACES_STORAGE_KEY,
   createWorkspace,
   getRecentWorkspaces,
+  hydrateWorkspaceImage,
   loadLastWorkspaceId,
   loadWorkspace,
   loadWorkspaces,
   saveWorkspace,
 } from '../lib/workspace-storage'
+import { clearWorkspaceImages } from '../lib/workspace-image-storage'
 
 describe('workspace-storage', () => {
   beforeEach(() => {
     localStorage.clear()
+    clearWorkspaceImages()
   })
 
   it('returns empty map when storage is empty', () => {
@@ -28,9 +31,9 @@ describe('workspace-storage', () => {
     expect(workspace.title).toBe(DEFAULT_WORKSPACE_TITLE)
   })
 
-  it('saves and loads a workspace', () => {
+  it('saves and loads a workspace', async () => {
     const workspace = createWorkspace('workspace-1')
-    saveWorkspace(workspace)
+    await saveWorkspace(workspace)
 
     const stored = loadWorkspace('workspace-1')
     expect(stored?.id).toBe('workspace-1')
@@ -40,16 +43,39 @@ describe('workspace-storage', () => {
     expect(loadLastWorkspaceId()).toBe('workspace-1')
   })
 
-  it('tracks the most recently updated workspace', () => {
+  it('stores large source images outside localStorage', async () => {
+    const workspace = {
+      ...createWorkspace('workspace-1'),
+      title: '大图工作区',
+      sourceImage: `data:image/png;base64,${'a'.repeat(1024 * 512)}`,
+    }
+
+    await saveWorkspace(workspace)
+
+    const raw = localStorage.getItem(WORKSPACES_STORAGE_KEY)
+    expect(raw).toBeTruthy()
+    expect(raw!.length).toBeLessThan(1024)
+    expect(loadWorkspace('workspace-1')).toMatchObject({
+      id: 'workspace-1',
+      title: '大图工作区',
+      hasSourceImage: true,
+    })
+    expect(loadWorkspace('workspace-1')?.sourceImage).toBeUndefined()
+
+    const hydrated = await hydrateWorkspaceImage(loadWorkspace('workspace-1')!)
+    expect(hydrated.sourceImage).toBe(workspace.sourceImage)
+  })
+
+  it('tracks the most recently updated workspace', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
 
     const first = createWorkspace('workspace-1')
-    saveWorkspace(first)
+    await saveWorkspace(first)
 
     vi.setSystemTime(new Date('2026-01-02T00:00:00.000Z'))
     const second = createWorkspace('workspace-2')
-    saveWorkspace(second)
+    await saveWorkspace(second)
 
     expect(getRecentWorkspaces().map((workspace) => workspace.id)).toEqual([
       'workspace-2',

@@ -12,12 +12,35 @@ import {
 
 const draftWorkspaces = new Map<string, Workspace>()
 const openWorkspaceIds = ref<string[]>([])
+export const dirtyWorkspaceIds = ref<Set<string>>(new Set())
 
 export const openWorkspaces = computed(() =>
   openWorkspaceIds.value
     .map((id) => getWorkspace(id))
     .filter((workspace): workspace is Workspace => workspace !== null),
 )
+
+export function isWorkspaceDirty(id: string): boolean {
+  return dirtyWorkspaceIds.value.has(id)
+}
+
+export function markWorkspaceDirty(id: string): void {
+  if (dirtyWorkspaceIds.value.has(id)) {
+    return
+  }
+
+  dirtyWorkspaceIds.value = new Set([...dirtyWorkspaceIds.value, id])
+}
+
+export function markWorkspaceClean(id: string): void {
+  if (!dirtyWorkspaceIds.value.has(id)) {
+    return
+  }
+
+  const next = new Set(dirtyWorkspaceIds.value)
+  next.delete(id)
+  dirtyWorkspaceIds.value = next
+}
 
 export function isDefaultWorkspace(workspace: Workspace): boolean {
   return workspace.title === DEFAULT_WORKSPACE_TITLE
@@ -44,6 +67,12 @@ export function updateDraftWorkspace(workspace: Workspace): void {
   }
 }
 
+export function stageWorkspaceChanges(workspace: Workspace): void {
+  draftWorkspaces.set(workspace.id, workspace)
+  markWorkspaceDirty(workspace.id)
+  openWorkspaceIds.value = [...openWorkspaceIds.value]
+}
+
 export function addOpenWorkspace(id: string): void {
   if (openWorkspaceIds.value.includes(id)) {
     return
@@ -56,14 +85,20 @@ export function removeOpenWorkspace(id: string): void {
   openWorkspaceIds.value = openWorkspaceIds.value.filter((openId) => openId !== id)
 }
 
-export function persistWorkspace(workspace: Workspace): void {
-  saveWorkspace(workspace)
+export async function persistWorkspace(workspace: Workspace): Promise<void> {
+  await saveWorkspace(workspace)
   draftWorkspaces.delete(workspace.id)
+  markWorkspaceClean(workspace.id)
+  openWorkspaceIds.value = [...openWorkspaceIds.value]
 }
 
-export function closeWorkspace(id: string): void {
+export function discardWorkspace(id: string): void {
   draftWorkspaces.delete(id)
-  deleteWorkspace(id)
+}
+
+export function deleteSavedWorkspace(id: string): void {
+  draftWorkspaces.delete(id)
+  void deleteWorkspace(id)
 }
 
 export function closeWorkspaceTab(id: string): string | null {
@@ -74,7 +109,8 @@ export function closeWorkspaceTab(id: string): string | null {
       : null
 
   removeOpenWorkspace(id)
-  closeWorkspace(id)
+  discardWorkspace(id)
+  markWorkspaceClean(id)
 
   return nextId
 }
@@ -82,4 +118,5 @@ export function closeWorkspaceTab(id: string): string | null {
 export function clearDraftWorkspaces(): void {
   draftWorkspaces.clear()
   openWorkspaceIds.value = []
+  dirtyWorkspaceIds.value = new Set()
 }

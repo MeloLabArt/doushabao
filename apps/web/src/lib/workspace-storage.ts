@@ -1,5 +1,19 @@
 import type { Workspace } from '@/types/workspace'
 
+import { ref } from 'vue'
+
+import {
+  deleteWorkspaceImage,
+  loadWorkspaceImage,
+  saveWorkspaceImage,
+} from '@/lib/workspace-image-storage'
+
+export const savedWorkspacesRevision = ref(0)
+
+function notifySavedWorkspacesChanged(): void {
+  savedWorkspacesRevision.value += 1
+}
+
 export const WORKSPACES_STORAGE_KEY = 'doushabao:workspaces'
 export const LAST_WORKSPACE_STORAGE_KEY = 'doushabao:last-workspace-id'
 
@@ -25,12 +39,21 @@ function normalizeWorkspace(raw: unknown): Workspace | null {
   const updatedAt = typeof value.updatedAt === 'number' ? value.updatedAt : createdAt
 
   if (typeof value.title === 'string') {
-    return {
+    const workspace: Workspace = {
       id: value.id,
       title: value.title,
       createdAt,
       updatedAt,
     }
+
+    if (typeof value.sourceImage === 'string') {
+      workspace.sourceImage = value.sourceImage
+      workspace.hasSourceImage = true
+    } else if (value.hasSourceImage === true) {
+      workspace.hasSourceImage = true
+    }
+
+    return workspace
   }
 
   const tabs = value.tabs
@@ -45,6 +68,16 @@ function normalizeWorkspace(raw: unknown): Workspace | null {
   }
 
   return null
+}
+
+function toStoredWorkspace(workspace: Workspace): Workspace {
+  const { sourceImage: _sourceImage, ...record } = workspace
+
+  return {
+    ...record,
+    updatedAt: Date.now(),
+    ...(workspace.sourceImage || workspace.hasSourceImage ? { hasSourceImage: true } : {}),
+  }
 }
 
 export function loadWorkspaces(): WorkspaceMap {
@@ -74,7 +107,23 @@ export function loadWorkspace(id: string): Workspace | null {
   return loadWorkspaces()[id] ?? null
 }
 
-export function deleteWorkspace(id: string): void {
+export async function hydrateWorkspaceImage(workspace: Workspace): Promise<Workspace> {
+  if (workspace.sourceImage || !workspace.hasSourceImage) {
+    return workspace
+  }
+
+  const sourceImage = await loadWorkspaceImage(workspace.id)
+  if (!sourceImage) {
+    return workspace
+  }
+
+  return {
+    ...workspace,
+    sourceImage,
+  }
+}
+
+export async function deleteWorkspace(id: string): Promise<void> {
   const workspaces = loadWorkspaces()
   if (!(id in workspaces)) {
     return
@@ -82,6 +131,8 @@ export function deleteWorkspace(id: string): void {
 
   delete workspaces[id]
   localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces))
+  await deleteWorkspaceImage(id)
+  notifySavedWorkspacesChanged()
 
   if (loadLastWorkspaceId() === id) {
     const [nextWorkspace] = getRecentWorkspaces()
@@ -102,20 +153,51 @@ export function saveLastWorkspaceId(id: string): void {
 }
 
 export function getRecentWorkspaces(): Workspace[] {
+  return loadSavedProjectsFromLocalStorage()
+}
+
+export function loadSavedProjectsFromLocalStorage(): Workspace[] {
   return Object.values(loadWorkspaces()).sort(
     (left, right) => right.updatedAt - left.updatedAt,
   )
 }
 
-export function saveWorkspace(workspace: Workspace): void {
-  const workspaces = loadWorkspaces()
-  const nextWorkspace: Workspace = {
-    ...workspace,
-    updatedAt: Date.now(),
+export async function saveWorkspace(workspace: Workspace): Promise<void> {
+  const hasSourceImage = Boolean(workspace.sourceImage)
+
+  if (workspace.sourceImage) {
+    await saveWorkspaceImage(workspace.id, workspace.sourceImage)
+  } else if (!hasSourceImage) {
+    await deleteWorkspaceImage(workspace.id)
   }
-  workspaces[nextWorkspace.id] = nextWorkspace
+
+  const workspaces = loadWorkspaces()
+  const storedWorkspace = toStoredWorkspace({
+    ...workspace,
+    hasSourceImage: hasSourceImage || workspace.hasSourceImage,
+  })
+
+  workspaces[storedWorkspace.id] = storedWorkspace
   localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces))
-  saveLastWorkspaceId(nextWorkspace.id)
+  saveLastWorkspaceId(storedWorkspace.id)
+  notifySavedWorkspacesChanged()
+
+  if (workspace.sourceImage) {
+    await migrateLegacyWorkspaceRecord(workspace.id)
+  }
+}
+
+async function migrateLegacyWorkspaceRecord(workspaceId: string): Promise<void> {
+  const workspaces = loadWorkspaces()
+  const current = workspaces[workspaceId]
+  if (!current?.sourceImage) {
+    return
+  }
+
+  await saveWorkspaceImage(workspaceId, current.sourceImage)
+  workspaces[workspaceId] = toStoredWorkspace(current)
+  localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces))
+  notifySavedWorkspacesChanged()
 }
 
 export function createWorkspace(id: string): Workspace {

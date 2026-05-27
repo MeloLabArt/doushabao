@@ -23,7 +23,7 @@ const emit = defineEmits<{
       v-for="tab in tabs"
       :key="tab.id"
       role="tab"
-      class="flex h-full max-w-48 shrink-0 items-center gap-1 rounded-t-md border border-b-0 pl-3 pr-1.5 transition-colors"
+      class="flex h-full max-w-52 shrink-0 items-center gap-1 rounded-t-md border border-b-0 pl-3 pr-1.5 transition-colors"
       :class="
         tab.id === activeTabId
           ? 'border-app-border bg-app-elevated text-app-foreground'
@@ -33,10 +33,18 @@ const emit = defineEmits<{
     >
       <button
         type="button"
-        class="min-w-0 truncate text-sm leading-none"
+        class="flex min-w-0 items-center gap-1 truncate text-sm leading-none"
         @click="emit('select', tab.id)"
       >
-        {{ tab.title }}
+        <span class="truncate">{{ tab.title }}</span>
+        <span
+          v-if="tab.isDirty"
+          class="shrink-0 text-app-subtle"
+          aria-label="有未保存的更改"
+          title="有未保存的更改"
+        >
+          •
+        </span>
       </button>
       <button
         type="button"
