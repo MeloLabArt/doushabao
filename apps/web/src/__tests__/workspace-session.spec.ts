@@ -153,7 +153,7 @@ describe('workspace-session', () => {
     expect(openWorkspaces.value).toHaveLength(0)
   })
 
-  it('persists generated image by replacing stored source image', async () => {
+  it('stages generated image until the workspace is saved', async () => {
     const draft = createDraftWorkspace('workspace-1')
     const originalImage = 'data:image/png;base64,original'
     const editedImage = 'data:image/png;base64,edited'
@@ -174,13 +174,23 @@ describe('workspace-session', () => {
     )
 
     expect(getWorkspace('workspace-1')?.sourceImage).toBe(editedImage)
+    expect(isWorkspaceDirty('workspace-1')).toBe(true)
+    expect(await hydrateWorkspaceImage(loadWorkspace('workspace-1')!)).toMatchObject({
+      sourceImage: originalImage,
+    })
+
+    await persistWorkspace({
+      ...getWorkspace('workspace-1')!,
+      title: '已保存项目',
+    })
+
     expect(isWorkspaceDirty('workspace-1')).toBe(false)
     expect(await hydrateWorkspaceImage(loadWorkspace('workspace-1')!)).toMatchObject({
       sourceImage: editedImage,
     })
   })
 
-  it('undoes the latest image change', async () => {
+  it('undoes the latest image change without persisting until saved', async () => {
     const draft = createDraftWorkspace('workspace-1')
     const originalImage = 'data:image/png;base64,original'
     const editedImage = 'data:image/png;base64,edited'
@@ -203,6 +213,7 @@ describe('workspace-session', () => {
     const restored = await undoWorkspaceImageChange('workspace-1')
 
     expect(restored?.sourceImage).toBe(originalImage)
+    expect(isWorkspaceDirty('workspace-1')).toBe(true)
     expect(await hydrateWorkspaceImage(loadWorkspace('workspace-1')!)).toMatchObject({
       sourceImage: originalImage,
     })

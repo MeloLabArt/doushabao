@@ -7,7 +7,6 @@ import {
   createWorkspace,
   deleteWorkspace,
   loadWorkspace,
-  replaceWorkspaceSourceImage,
   saveWorkspace,
 } from '@/lib/workspace-storage'
 import { loadWorkspaceImage } from '@/lib/workspace-image-storage'
@@ -127,14 +126,14 @@ export async function applyWorkspaceGeneratedImage(
     recordWorkspaceImageHistory(workspace.id, previousImage)
   }
 
-  const wasSaved = Boolean(loadWorkspace(workspace.id))
-  const nextWorkspace = await replaceWorkspaceSourceImage(workspace, sourceImage)
+  const nextWorkspace: Workspace = {
+    ...workspace,
+    sourceImage,
+    hasSourceImage: true,
+    updatedAt: Date.now(),
+  }
 
   stageWorkspaceChanges(nextWorkspace)
-
-  if (wasSaved) {
-    markWorkspaceClean(workspace.id)
-  }
 
   return nextWorkspace
 }
@@ -147,24 +146,15 @@ export async function undoWorkspaceImageChange(workspaceId: string): Promise<Wor
     return null
   }
 
-  const wasSaved = Boolean(loadWorkspace(workspace.id))
-  const nextWorkspace = await replaceWorkspaceSourceImage(
-    {
-      ...workspace,
-      sourceImage: previousImage,
-      hasSourceImage: true,
-    },
-    previousImage,
-  )
+  const nextWorkspace: Workspace = {
+    ...workspace,
+    sourceImage: previousImage,
+    hasSourceImage: true,
+    updatedAt: Date.now(),
+  }
 
   stageWorkspaceChanges(nextWorkspace)
   workspaceImageRevision.value += 1
-
-  if (wasSaved) {
-    markWorkspaceClean(workspace.id)
-  } else {
-    markWorkspaceDirty(workspace.id)
-  }
 
   return nextWorkspace
 }

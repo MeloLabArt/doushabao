@@ -104,6 +104,6 @@ describe('WorkspaceView image actions', () => {
     await flushPromises()
 
     expect(wrapper.find('img').attributes('src')).toBe('data:image/png;base64,edited')
-    expect(await loadWorkspaceImage('workspace-1')).toBe('data:image/png;base64,edited')
+    expect(await loadWorkspaceImage('workspace-1')).toBeUndefined()
   })
 })
