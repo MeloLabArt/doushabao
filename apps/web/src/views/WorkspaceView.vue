@@ -92,7 +92,7 @@ defineExpose({
         v-else-if="workspace.sourceImage"
         :src="workspace.sourceImage"
         alt="工作区图片"
-        class="max-h-full max-w-full object-contain"
+        class="max-h-[55vh] max-w-xl object-contain"
       />
     </div>
   </section>
