@@ -136,10 +136,10 @@ async function handleSubmit() {
           type="text"
           required
           autocomplete="off"
-          placeholder="google/gemini-2.5-flash-image-preview"
+          placeholder="google/gemini-2.5-flash-image"
           :class="inputClass"
         />
-        <span class="text-xs text-app-subtle">用于根据分析结果与用户提示词生成修图结果，需支持图像输出。</span>
+        <span class="text-xs text-app-subtle">需支持图像输出（output_modalities 含 image），例如 google/gemini-2.5-flash-image。</span>
       </label>
 
       <div class="flex items-center gap-3 pt-1">

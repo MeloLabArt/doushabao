@@ -7,8 +7,18 @@ import {
   createWorkspace,
   deleteWorkspace,
   loadWorkspace,
+  replaceWorkspaceSourceImage,
   saveWorkspace,
 } from '@/lib/workspace-storage'
+import { loadWorkspaceImage } from '@/lib/workspace-image-storage'
+import {
+  clearAllWorkspaceImageHistory,
+  clearWorkspaceImageHistory,
+  popWorkspaceImageUndo,
+  recordWorkspaceImageHistory,
+} from '@/lib/workspace-image-history'
+
+export { canUndoWorkspaceImage, recordWorkspaceImageHistory } from '@/lib/workspace-image-history'
 
 export const SETTINGS_TAB_ID = 'settings'
 
@@ -80,6 +90,96 @@ export function stageWorkspaceChanges(workspace: Workspace): void {
   draftWorkspaces.set(workspace.id, workspace)
   markWorkspaceDirty(workspace.id)
   openTabIds.value = [...openTabIds.value]
+  workspaceContentRevision.value += 1
+}
+
+export const workspaceImageRevision = ref(0)
+export const workspaceContentRevision = ref(0)
+export const workspaceEditingIds = ref<Set<string>>(new Set())
+
+export function setWorkspaceEditing(workspaceId: string, editing: boolean): void {
+  const next = new Set(workspaceEditingIds.value)
+
+  if (editing) {
+    next.add(workspaceId)
+  } else {
+    next.delete(workspaceId)
+  }
+
+  workspaceEditingIds.value = next
+}
+
+export function isWorkspaceEditing(workspaceId: string): boolean {
+  return workspaceEditingIds.value.has(workspaceId)
+}
+
+export function stageWorkspaceImageChange(workspace: Workspace): void {
+  stageWorkspaceChanges(workspace)
+  workspaceImageRevision.value += 1
+}
+
+export async function applyWorkspaceGeneratedImage(
+  workspace: Workspace,
+  sourceImage: string,
+): Promise<Workspace> {
+  const previousImage = workspace.sourceImage ?? (await loadWorkspaceImage(workspace.id))
+  if (previousImage && previousImage !== sourceImage) {
+    recordWorkspaceImageHistory(workspace.id, previousImage)
+  }
+
+  const wasSaved = Boolean(loadWorkspace(workspace.id))
+  const nextWorkspace = await replaceWorkspaceSourceImage(workspace, sourceImage)
+
+  stageWorkspaceChanges(nextWorkspace)
+
+  if (wasSaved) {
+    markWorkspaceClean(workspace.id)
+  }
+
+  return nextWorkspace
+}
+
+export async function undoWorkspaceImageChange(workspaceId: string): Promise<Workspace | null> {
+  const workspace = getWorkspace(workspaceId)
+  const previousImage = popWorkspaceImageUndo(workspaceId)
+
+  if (!workspace || !previousImage) {
+    return null
+  }
+
+  const wasSaved = Boolean(loadWorkspace(workspace.id))
+  const nextWorkspace = await replaceWorkspaceSourceImage(
+    {
+      ...workspace,
+      sourceImage: previousImage,
+      hasSourceImage: true,
+    },
+    previousImage,
+  )
+
+  stageWorkspaceChanges(nextWorkspace)
+  workspaceImageRevision.value += 1
+
+  if (wasSaved) {
+    markWorkspaceClean(workspace.id)
+  } else {
+    markWorkspaceDirty(workspace.id)
+  }
+
+  return nextWorkspace
+}
+
+/** @deprecated Use applyWorkspaceGeneratedImage */
+export function stageWorkspaceGeneratedImage(workspace: Workspace, sourceImage: string): Workspace {
+  const nextWorkspace: Workspace = {
+    ...workspace,
+    sourceImage,
+    hasSourceImage: true,
+    updatedAt: Date.now(),
+  }
+
+  stageWorkspaceChanges(nextWorkspace)
+  return nextWorkspace
 }
 
 export function addOpenWorkspace(id: string): void {
@@ -87,6 +187,7 @@ export function addOpenWorkspace(id: string): void {
     return
   }
 
+  clearWorkspaceImageHistory(id)
   openTabIds.value = [...openTabIds.value, id]
 }
 
@@ -122,6 +223,24 @@ export function deleteSavedWorkspace(id: string): void {
   void deleteWorkspace(id)
 }
 
+export async function removeSavedProject(id: string): Promise<string | null> {
+  const index = openTabIds.value.indexOf(id)
+  const nextTabId = index >= 0 ? getNextTabIdAfterClose(index) : null
+
+  draftWorkspaces.delete(id)
+  markWorkspaceClean(id)
+
+  if (index >= 0) {
+    removeOpenTab(id)
+  }
+
+  await deleteWorkspace(id)
+
+  clearWorkspaceImageHistory(id)
+
+  return nextTabId
+}
+
 function getNextTabIdAfterClose(index: number): string | null {
   if (index < 0) {
     return null
@@ -139,6 +258,7 @@ export function closeTab(id: string): string | null {
   if (!isSettingsTab(id)) {
     discardWorkspace(id)
     markWorkspaceClean(id)
+    clearWorkspaceImageHistory(id)
   }
 
   return nextId
@@ -152,4 +272,8 @@ export function clearDraftWorkspaces(): void {
   draftWorkspaces.clear()
   openTabIds.value = []
   dirtyWorkspaceIds.value = new Set()
+  workspaceEditingIds.value = new Set()
+  workspaceContentRevision.value = 0
+  workspaceImageRevision.value = 0
+  clearAllWorkspaceImageHistory()
 }

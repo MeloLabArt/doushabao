@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ImageIcon } from '@lucide/vue'
+import { ImageIcon, Trash2 } from '@lucide/vue'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 import {
@@ -15,9 +15,11 @@ defineProps<{
 
 const emit = defineEmits<{
   select: [workspaceId: string]
+  delete: [workspaceId: string]
 }>()
 
 const savedProjects = ref<Workspace[]>([])
+const pendingDeleteId = ref<string | null>(null)
 
 function refreshFromLocalStorage(): void {
   savedProjects.value = loadSavedProjectsFromLocalStorage()
@@ -48,6 +50,19 @@ function formatUpdatedAt(timestamp: number): string {
     minute: '2-digit',
   })
 }
+
+function requestDelete(workspaceId: string): void {
+  pendingDeleteId.value = workspaceId
+}
+
+function cancelDelete(): void {
+  pendingDeleteId.value = null
+}
+
+function confirmDelete(workspaceId: string): void {
+  pendingDeleteId.value = null
+  emit('delete', workspaceId)
+}
 </script>
 
 <template>
@@ -65,10 +80,10 @@ function formatUpdatedAt(timestamp: number): string {
       </p>
 
       <ul v-else class="space-y-1">
-        <li v-for="project in savedProjects" :key="project.id">
+        <li v-for="project in savedProjects" :key="project.id" class="relative">
           <button
             type="button"
-            class="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 text-left transition-colors"
+            class="flex w-full items-start gap-2.5 rounded-lg px-2 py-2 pr-9 text-left transition-colors"
             :class="
               project.id === activeWorkspaceId
                 ? 'bg-app-accent text-app-foreground'
@@ -92,6 +107,38 @@ function formatUpdatedAt(timestamp: number): string {
               <p class="mt-0.5 text-xs text-app-subtle">{{ formatUpdatedAt(project.updatedAt) }}</p>
             </div>
           </button>
+
+          <button
+            type="button"
+            class="absolute top-2 right-2 inline-flex size-7 items-center justify-center rounded-md text-app-subtle transition-colors hover:bg-app hover:text-red-600 dark:hover:text-red-400"
+            :aria-label="`删除项目 ${project.title}`"
+            @click.stop="requestDelete(project.id)"
+          >
+            <Trash2 :size="14" :stroke-width="1.75" />
+          </button>
+
+          <div
+            v-if="pendingDeleteId === project.id"
+            class="absolute inset-0 z-10 flex flex-col justify-center gap-2 rounded-lg border border-app-border bg-app-elevated/95 p-2 shadow-sm backdrop-blur-sm"
+          >
+            <p class="px-1 text-xs text-app-foreground">删除「{{ project.title }}」？</p>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="flex-1 rounded-md border border-app-border px-2 py-1 text-xs text-app-muted transition hover:bg-app-accent"
+                @click.stop="cancelDelete"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                class="flex-1 rounded-md bg-red-600 px-2 py-1 text-xs text-white transition hover:opacity-90"
+                @click.stop="confirmDelete(project.id)"
+              >
+                删除
+              </button>
+            </div>
+          </div>
         </li>
       </ul>
     </div>

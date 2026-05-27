@@ -1,5 +1,6 @@
 export type AppShortcutActions = {
   save: () => void
+  undo: () => void
   toggleSidebar: () => void
   toggleRightSidebar: () => void
 }
@@ -15,6 +16,11 @@ export function handleAppShortcut(event: ShortcutEvent, actions: AppShortcutActi
 
   if (key === 's') {
     actions.save()
+    return true
+  }
+
+  if (key === 'z' && !event.shiftKey && !event.altKey) {
+    actions.undo()
     return true
   }
 

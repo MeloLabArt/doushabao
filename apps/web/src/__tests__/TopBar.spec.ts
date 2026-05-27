@@ -7,6 +7,7 @@ import TopBar from '../components/TopBar.vue'
 describe('TopBar save menu', () => {
   const defaultProps = {
     saveEnabled: false,
+    undoEnabled: false,
     sidebarVisible: true,
     rightSidebarVisible: true,
   }
@@ -89,6 +90,7 @@ describe('TopBar save menu', () => {
 describe('TopBar view menu', () => {
   const defaultProps = {
     saveEnabled: false,
+    undoEnabled: false,
     sidebarVisible: true,
     rightSidebarVisible: true,
   }
@@ -137,5 +139,44 @@ describe('TopBar view menu', () => {
     expect(badges.length).toBeGreaterThanOrEqual(2)
     expect(badges.some((badge) => badge.text().match(/⌘B|Ctrl\+B/))).toBe(true)
     expect(badges.some((badge) => badge.text().match(/⌘⇧B|Ctrl\+Shift\+B/))).toBe(true)
+  })
+})
+
+describe('TopBar edit menu', () => {
+  const defaultProps = {
+    saveEnabled: false,
+    undoEnabled: true,
+    sidebarVisible: true,
+    rightSidebarVisible: true,
+  }
+
+  async function openEditMenu(wrapper: ReturnType<typeof mount>) {
+    const editButton = wrapper.findAll('button').find((button) => button.text() === '编辑')
+    await editButton!.trigger('click')
+    await wrapper.vm.$nextTick()
+  }
+
+  it('emits undo action from edit menu', async () => {
+    const wrapper = mount(TopBar, {
+      props: defaultProps,
+    })
+
+    await openEditMenu(wrapper)
+
+    const undoItem = wrapper.findAll('[role="menuitem"]').find((item) => item.text().includes('撤回更改'))
+    await undoItem!.trigger('click')
+
+    expect(wrapper.emitted('editAction')).toEqual([['undo']])
+  })
+
+  it('shows undo shortcut in edit menu', async () => {
+    const wrapper = mount(TopBar, {
+      props: defaultProps,
+    })
+
+    await openEditMenu(wrapper)
+
+    expect(wrapper.get('[role="menu"]').text()).toMatch(/撤回更改/)
+    expect(wrapper.get('[role="menu"]').text()).toMatch(/⌘Z|Ctrl\+Z/)
   })
 })

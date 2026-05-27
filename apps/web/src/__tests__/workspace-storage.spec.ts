@@ -10,9 +10,10 @@ import {
   loadLastWorkspaceId,
   loadWorkspace,
   loadWorkspaces,
+  replaceWorkspaceSourceImage,
   saveWorkspace,
 } from '../lib/workspace-storage'
-import { clearWorkspaceImages } from '../lib/workspace-image-storage'
+import { clearWorkspaceImages, loadWorkspaceImage } from '../lib/workspace-image-storage'
 
 describe('workspace-storage', () => {
   beforeEach(() => {
@@ -84,5 +85,24 @@ describe('workspace-storage', () => {
     expect(localStorage.getItem(LAST_WORKSPACE_STORAGE_KEY)).toBe('workspace-2')
 
     vi.useRealTimers()
+  })
+
+  it('replaces stored source image in IndexedDB', async () => {
+    const workspace = {
+      ...createWorkspace('workspace-1'),
+      title: '测试项目',
+      sourceImage: 'data:image/png;base64,original',
+      hasSourceImage: true,
+    }
+
+    await saveWorkspace(workspace)
+
+    const replaced = await replaceWorkspaceSourceImage(workspace, 'data:image/png;base64,edited')
+
+    expect(replaced.sourceImage).toBe('data:image/png;base64,edited')
+    expect(await loadWorkspaceImage('workspace-1')).toBe('data:image/png;base64,edited')
+    expect(await hydrateWorkspaceImage(loadWorkspace('workspace-1')!)).toMatchObject({
+      sourceImage: 'data:image/png;base64,edited',
+    })
   })
 })

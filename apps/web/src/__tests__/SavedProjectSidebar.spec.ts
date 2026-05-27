@@ -34,7 +34,7 @@ describe('SavedProjectSidebar', () => {
     })
     await flushPromises()
 
-    const items = wrapper.findAll('li button')
+    const items = wrapper.findAll('li > button').filter((button) => !button.attributes('aria-label'))
     expect(items).toHaveLength(2)
     expect(items[0]!.text()).toContain('海报 B')
     expect(items[1]!.text()).toContain('海报 A')
@@ -69,5 +69,28 @@ describe('SavedProjectSidebar', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('暂无已保存项目')
+  })
+
+  it('emits delete after confirming removal', async () => {
+    await saveWorkspace({
+      ...createWorkspace('workspace-1'),
+      title: '待删除项目',
+    })
+
+    const wrapper = mount(SavedProjectSidebar, {
+      props: {
+        activeWorkspaceId: '',
+      },
+    })
+    await flushPromises()
+
+    await wrapper.find('button[aria-label="删除项目 待删除项目"]').trigger('click')
+
+    const confirmDeleteButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === '删除' && button.attributes('type') === 'button')
+    await confirmDeleteButton!.trigger('click')
+
+    expect(wrapper.emitted('delete')).toEqual([['workspace-1']])
   })
 })

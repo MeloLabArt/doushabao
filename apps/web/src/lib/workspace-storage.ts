@@ -162,6 +162,33 @@ export function loadSavedProjectsFromLocalStorage(): Workspace[] {
   )
 }
 
+export async function replaceWorkspaceSourceImage(
+  workspace: Workspace,
+  sourceImage: string,
+): Promise<Workspace> {
+  await saveWorkspaceImage(workspace.id, sourceImage)
+
+  const nextWorkspace: Workspace = {
+    ...workspace,
+    sourceImage,
+    hasSourceImage: true,
+    updatedAt: Date.now(),
+  }
+
+  const existing = loadWorkspace(workspace.id)
+  if (!existing) {
+    return nextWorkspace
+  }
+
+  const workspaces = loadWorkspaces()
+  workspaces[workspace.id] = toStoredWorkspace(nextWorkspace)
+  localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces))
+  saveLastWorkspaceId(workspace.id)
+  notifySavedWorkspacesChanged()
+
+  return nextWorkspace
+}
+
 export async function saveWorkspace(workspace: Workspace): Promise<void> {
   const hasSourceImage = Boolean(workspace.sourceImage)
 

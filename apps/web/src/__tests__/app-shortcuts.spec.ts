@@ -6,6 +6,7 @@ describe('handleAppShortcut', () => {
   function createActions() {
     return {
       save: vi.fn(),
+      undo: vi.fn(),
       toggleSidebar: vi.fn(),
       toggleRightSidebar: vi.fn(),
     }
@@ -48,5 +49,14 @@ describe('handleAppShortcut', () => {
       handleAppShortcut({ key: 'b', metaKey: false, ctrlKey: false, shiftKey: false, altKey: false }, actions),
     ).toBe(false)
     expect(actions.toggleSidebar).not.toHaveBeenCalled()
+  })
+
+  it('calls undo on Cmd/Ctrl+Z', () => {
+    const actions = createActions()
+
+    expect(
+      handleAppShortcut({ key: 'z', metaKey: true, ctrlKey: false, shiftKey: false, altKey: false }, actions),
+    ).toBe(true)
+    expect(actions.undo).toHaveBeenCalledOnce()
   })
 })

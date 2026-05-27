@@ -8,5 +8,6 @@ export const AGENT_ANALYSIS_JSON_SCHEMA = `{
       "severity": "low | medium | high"
     }
   ],
-  "summary": "对图片整体质量与主要问题的简要总结"
+  "summary": "对图片整体质量与主要问题的简要总结",
+  "editPrompt": "给修图模型的具体修改指令，清晰、可执行，中文"
 }`;

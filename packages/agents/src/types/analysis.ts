@@ -21,4 +21,5 @@ export type AgentImageAnalysis = {
   imageTypeReason: string;
   deficiencies: ImageDeficiency[];
   summary: string;
+  editPrompt: string;
 };

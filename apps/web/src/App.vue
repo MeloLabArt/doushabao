@@ -13,15 +13,20 @@ import { handleAppShortcut } from '@/lib/app-shortcuts'
 import {
   addOpenWorkspace,
   addSettingsTab,
+  canUndoWorkspaceImage,
   closeTab,
   dirtyWorkspaceIds,
   getWorkspace,
   isSettingsTab,
   isWorkspaceDirty,
+  isWorkspaceEditing,
   openTabs,
   persistWorkspace,
+  removeSavedProject,
   SETTINGS_TAB_ID,
+  undoWorkspaceImageChange,
 } from '@/lib/workspace-session'
+import { workspaceUndoRevision } from '@/lib/workspace-image-history'
 import { DEFAULT_WORKSPACE_TITLE } from '@/lib/workspace-storage'
 import type { Workspace } from '@/types/workspace'
 
@@ -87,6 +92,17 @@ const canSaveActiveWorkspace = computed(() => {
   return dirtyWorkspaceIds.value.has(workspaceId)
 })
 
+const canUndoActiveWorkspace = computed(() => {
+  workspaceUndoRevision.value
+
+  const workspaceId = activeWorkspaceId.value
+  if (!workspaceId || isWorkspaceEditing(workspaceId)) {
+    return false
+  }
+
+  return canUndoWorkspaceImage(workspaceId)
+})
+
 router.beforeEach((to, from) => {
   if (to.name === 'workspace' && typeof to.params.workspaceId === 'string') {
     addOpenWorkspace(to.params.workspaceId)
@@ -125,6 +141,21 @@ function handleFileAction(action: 'new-workspace' | 'open' | 'save') {
   if (action === 'save') {
     requestSaveActiveWorkspace()
   }
+}
+
+function handleEditAction(action: 'undo') {
+  if (action === 'undo') {
+    void requestUndoActiveWorkspace()
+  }
+}
+
+async function requestUndoActiveWorkspace(): Promise<void> {
+  const workspaceId = activeWorkspaceId.value
+  if (!workspaceId || !canUndoActiveWorkspace.value) {
+    return
+  }
+
+  await undoWorkspaceImageChange(workspaceId)
 }
 
 function requestSaveActiveWorkspace(): void {
@@ -179,6 +210,9 @@ function onDocumentKeyDown(event: KeyboardEvent): void {
   if (
     handleAppShortcut(event, {
       save: requestSaveActiveWorkspace,
+      undo: () => {
+        void requestUndoActiveWorkspace()
+      },
       toggleSidebar,
       toggleRightSidebar,
     })
@@ -254,24 +288,38 @@ function closeAppTab(tabId: string) {
 
   navigateAfterCloseTab(nextTabId)
 }
+
+async function handleDeleteProject(workspaceId: string): Promise<void> {
+  const isViewingDeletedProject =
+    route.name === 'workspace' && route.params.workspaceId === workspaceId
+
+  const nextTabId = await removeSavedProject(workspaceId)
+
+  if (isViewingDeletedProject) {
+    navigateAfterCloseTab(nextTabId)
+  }
+}
 </script>
 
 <template>
   <div class="flex min-h-dvh flex-col bg-app text-app-foreground">
     <TopBar
       :save-enabled="canSaveActiveWorkspace"
+      :undo-enabled="canUndoActiveWorkspace"
       :sidebar-visible="sidebarVisible"
       :right-sidebar-visible="rightSidebarVisible"
       @settings-click="openSettings"
       @toggle-sidebar="toggleSidebar"
       @toggle-right-sidebar="toggleRightSidebar"
       @file-action="handleFileAction"
+      @edit-action="handleEditAction"
     />
     <div class="flex min-h-0 flex-1">
       <SavedProjectSidebar
         v-show="sidebarVisible"
         :active-workspace-id="activeWorkspaceId"
         @select="openSavedProject"
+        @delete="handleDeleteProject"
       />
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         <TabBar

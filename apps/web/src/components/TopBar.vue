@@ -2,7 +2,9 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { Check, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose, Settings } from '@lucide/vue'
 
-const navMenuItems = ['编辑', '帮助'] as const
+const navMenuItems = ['帮助'] as const
+
+const editMenuItems = [{ id: 'undo', label: '撤回更改', shortcut: true }] as const
 
 const fileMenuItems = [
   { id: 'new-workspace', label: '新建工作区', dividerAfter: true },
@@ -17,9 +19,11 @@ const viewMenuItems = [
 
 type FileMenuAction = (typeof fileMenuItems)[number]['id']
 type ViewMenuAction = (typeof viewMenuItems)[number]['id']
+type EditMenuAction = (typeof editMenuItems)[number]['id']
 
 const props = defineProps<{
   saveEnabled: boolean
+  undoEnabled: boolean
   sidebarVisible: boolean
   rightSidebarVisible: boolean
 }>()
@@ -30,14 +34,18 @@ const emit = defineEmits<{
   toggleRightSidebar: []
   menuClick: [menu: (typeof navMenuItems)[number]]
   fileAction: [action: FileMenuAction]
+  editAction: [action: EditMenuAction]
 }>()
 
 const fileMenuOpen = ref(false)
 const viewMenuOpen = ref(false)
+const editMenuOpen = ref(false)
 const fileMenuRef = ref<HTMLElement | null>(null)
 const viewMenuRef = ref<HTMLElement | null>(null)
+const editMenuRef = ref<HTMLElement | null>(null)
 const isMac = /Mac|iPhone|iPad/i.test(navigator.userAgent)
 const saveShortcutLabel = isMac ? '⌘S' : 'Ctrl+S'
+const undoShortcutLabel = isMac ? '⌘Z' : 'Ctrl+Z'
 const leftSidebarShortcutLabel = isMac ? '⌘B' : 'Ctrl+B'
 const rightSidebarShortcutLabel = isMac ? '⌘⇧B' : 'Ctrl+Shift+B'
 
@@ -55,16 +63,25 @@ function isViewItemChecked(id: ViewMenuAction): boolean {
 function closeAllMenus() {
   fileMenuOpen.value = false
   viewMenuOpen.value = false
+  editMenuOpen.value = false
 }
 
 function toggleFileMenu() {
   viewMenuOpen.value = false
+  editMenuOpen.value = false
   fileMenuOpen.value = !fileMenuOpen.value
 }
 
 function toggleViewMenu() {
   fileMenuOpen.value = false
+  editMenuOpen.value = false
   viewMenuOpen.value = !viewMenuOpen.value
+}
+
+function toggleEditMenu() {
+  fileMenuOpen.value = false
+  viewMenuOpen.value = false
+  editMenuOpen.value = !editMenuOpen.value
 }
 
 function onFileAction(action: FileMenuAction) {
@@ -82,6 +99,15 @@ function onViewAction(action: ViewMenuAction) {
   closeAllMenus()
 }
 
+function onEditAction(action: EditMenuAction) {
+  if (action === 'undo' && !props.undoEnabled) {
+    return
+  }
+
+  emit('editAction', action)
+  closeAllMenus()
+}
+
 function onDocumentPointerDown(event: PointerEvent) {
   const target = event.target as Node
 
@@ -91,6 +117,10 @@ function onDocumentPointerDown(event: PointerEvent) {
 
   if (viewMenuOpen.value && !viewMenuRef.value?.contains(target)) {
     viewMenuOpen.value = false
+  }
+
+  if (editMenuOpen.value && !editMenuRef.value?.contains(target)) {
+    editMenuOpen.value = false
   }
 }
 
@@ -208,6 +238,58 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
                 <span>{{ item.label }}</span>
                 <span class="ml-auto pl-4 text-xs text-app-subtle">
                   {{ shortcutLabelForViewItem(item.shortcut) }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div ref="editMenuRef" class="relative">
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1 text-sm transition-colors"
+            :class="
+              editMenuOpen
+                ? 'bg-app-accent text-app-foreground'
+                : 'text-app-muted hover:bg-app-accent hover:text-app-foreground'
+            "
+            aria-haspopup="menu"
+            :aria-expanded="editMenuOpen"
+            @click.stop="toggleEditMenu"
+          >
+            编辑
+          </button>
+
+          <div
+            v-if="editMenuOpen"
+            class="absolute left-0 top-full z-50 min-w-40 pt-1"
+            role="presentation"
+            @pointerdown.stop
+          >
+            <div
+              class="overflow-hidden rounded-lg border border-app-border bg-app-elevated py-1 shadow-lg shadow-black/10"
+              role="menu"
+            >
+              <button
+                v-for="item in editMenuItems"
+                :key="item.id"
+                type="button"
+                class="flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors"
+                :class="
+                  item.id === 'undo' && !props.undoEnabled
+                    ? 'cursor-not-allowed text-app-subtle'
+                    : 'text-app-foreground hover:bg-app-accent'
+                "
+                role="menuitem"
+                :aria-disabled="item.id === 'undo' && !props.undoEnabled"
+                @click="onEditAction(item.id)"
+              >
+                <span>{{ item.label }}</span>
+                <span
+                  v-if="'shortcut' in item && item.shortcut"
+                  class="ml-auto pl-4 text-xs text-app-subtle"
+                >
+                  {{ undoShortcutLabel }}
                 </span>
               </button>
             </div>

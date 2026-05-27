@@ -13,7 +13,13 @@ function stripMarkdownFence(text: string): string {
 export function parseAgentAnalysis(text: string): AgentImageAnalysis {
   const parsed = JSON.parse(stripMarkdownFence(text)) as AgentImageAnalysis;
 
-  if (!parsed.imageType || !parsed.imageTypeReason || !Array.isArray(parsed.deficiencies) || !parsed.summary) {
+  if (
+    !parsed.imageType ||
+    !parsed.imageTypeReason ||
+    !Array.isArray(parsed.deficiencies) ||
+    !parsed.summary ||
+    !parsed.editPrompt?.trim()
+  ) {
     throw new Error("Agent analysis JSON is missing required fields");
   }
 

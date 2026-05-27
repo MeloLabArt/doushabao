@@ -15,8 +15,13 @@ import {
   openTabs,
   openWorkspaces,
   persistWorkspace,
+  removeSavedProject,
+  applyWorkspaceGeneratedImage,
+  canUndoWorkspaceImage,
+  undoWorkspaceImageChange,
   SETTINGS_TAB_ID,
   stageWorkspaceChanges,
+  stageWorkspaceGeneratedImage,
 } from '../lib/workspace-session'
 import {
   WORKSPACES_STORAGE_KEY,
@@ -131,9 +136,141 @@ describe('workspace-session', () => {
     const workspace = createWorkspace('workspace-1')
     await saveWorkspace(workspace)
 
-    deleteSavedWorkspace('workspace-1')
+    await removeSavedProject('workspace-1')
 
     expect(loadWorkspace('workspace-1')).toBeNull()
+  })
+
+  it('closes an open tab when deleting a saved project', async () => {
+    const workspace = createWorkspace('workspace-1')
+    await saveWorkspace(workspace)
+    addOpenWorkspace('workspace-1')
+
+    const nextId = await removeSavedProject('workspace-1')
+
+    expect(nextId).toBeNull()
+    expect(getWorkspace('workspace-1')).toBeNull()
+    expect(openWorkspaces.value).toHaveLength(0)
+  })
+
+  it('persists generated image by replacing stored source image', async () => {
+    const draft = createDraftWorkspace('workspace-1')
+    const originalImage = 'data:image/png;base64,original'
+    const editedImage = 'data:image/png;base64,edited'
+
+    await saveWorkspace({
+      ...draft,
+      sourceImage: originalImage,
+      hasSourceImage: true,
+    })
+
+    await applyWorkspaceGeneratedImage(
+      {
+        ...draft,
+        sourceImage: originalImage,
+        hasSourceImage: true,
+      },
+      editedImage,
+    )
+
+    expect(getWorkspace('workspace-1')?.sourceImage).toBe(editedImage)
+    expect(isWorkspaceDirty('workspace-1')).toBe(false)
+    expect(await hydrateWorkspaceImage(loadWorkspace('workspace-1')!)).toMatchObject({
+      sourceImage: editedImage,
+    })
+  })
+
+  it('undoes the latest image change', async () => {
+    const draft = createDraftWorkspace('workspace-1')
+    const originalImage = 'data:image/png;base64,original'
+    const editedImage = 'data:image/png;base64,edited'
+
+    await saveWorkspace({
+      ...draft,
+      sourceImage: originalImage,
+      hasSourceImage: true,
+    })
+
+    await applyWorkspaceGeneratedImage(
+      {
+        ...draft,
+        sourceImage: originalImage,
+        hasSourceImage: true,
+      },
+      editedImage,
+    )
+
+    const restored = await undoWorkspaceImageChange('workspace-1')
+
+    expect(restored?.sourceImage).toBe(originalImage)
+    expect(await hydrateWorkspaceImage(loadWorkspace('workspace-1')!)).toMatchObject({
+      sourceImage: originalImage,
+    })
+  })
+
+  it('clears undo history when closing a workspace tab', async () => {
+    const draft = createDraftWorkspace('workspace-1')
+
+    await saveWorkspace({
+      ...draft,
+      sourceImage: 'data:image/png;base64,original',
+      hasSourceImage: true,
+    })
+
+    await applyWorkspaceGeneratedImage(
+      {
+        ...draft,
+        sourceImage: 'data:image/png;base64,original',
+        hasSourceImage: true,
+      },
+      'data:image/png;base64,edited',
+    )
+
+    expect(canUndoWorkspaceImage('workspace-1')).toBe(true)
+
+    closeWorkspaceTab('workspace-1')
+
+    expect(canUndoWorkspaceImage('workspace-1')).toBe(false)
+  })
+
+  it('starts with empty undo history when reopening a closed workspace tab', async () => {
+    const draft = createDraftWorkspace('workspace-1')
+
+    await saveWorkspace({
+      ...draft,
+      sourceImage: 'data:image/png;base64,original',
+      hasSourceImage: true,
+    })
+
+    await applyWorkspaceGeneratedImage(
+      {
+        ...draft,
+        sourceImage: 'data:image/png;base64,original',
+        hasSourceImage: true,
+      },
+      'data:image/png;base64,edited',
+    )
+
+    closeWorkspaceTab('workspace-1')
+    addOpenWorkspace('workspace-1')
+
+    expect(canUndoWorkspaceImage('workspace-1')).toBe(false)
+  })
+
+  it('stages generated image for workspace display', () => {
+    const draft = createDraftWorkspace('workspace-1')
+
+    stageWorkspaceGeneratedImage(
+      {
+        ...draft,
+        sourceImage: 'data:image/png;base64,original',
+        hasSourceImage: true,
+      },
+      'data:image/png;base64,edited',
+    )
+
+    expect(getWorkspace('workspace-1')?.sourceImage).toBe('data:image/png;base64,edited')
+    expect(isWorkspaceDirty('workspace-1')).toBe(true)
   })
 
   it('closes a tab and switches to the neighboring workspace', () => {
