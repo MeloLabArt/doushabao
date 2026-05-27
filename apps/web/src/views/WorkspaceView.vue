@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ImageDropzone from '@/components/ImageDropzone.vue'
+import WorkspaceImageViewport from '@/components/WorkspaceImageViewport.vue'
 import {
   addOpenWorkspace,
   getWorkspace,
@@ -82,18 +83,20 @@ defineExpose({
 
 <template>
   <section v-if="workspace" class="flex min-h-0 flex-1 flex-col bg-app-elevated">
-    <div class="flex min-h-0 flex-1 items-center justify-center p-6">
-      <p v-if="isLoadingImage" class="text-sm text-app-muted">正在加载图片…</p>
-      <ImageDropzone
-        v-else-if="!workspace.sourceImage && !workspace.hasSourceImage"
-        @select="handleImageSelect"
-      />
-      <img
-        v-else-if="workspace.sourceImage"
-        :src="workspace.sourceImage"
-        alt="工作区图片"
-        class="max-h-[55vh] max-w-xl object-contain"
-      />
+    <p v-if="isLoadingImage" class="flex flex-1 items-center justify-center text-sm text-app-muted">
+      正在加载图片…
+    </p>
+    <div
+      v-else-if="!workspace.sourceImage && !workspace.hasSourceImage"
+      class="flex flex-1 items-center justify-center p-6"
+    >
+      <ImageDropzone @select="handleImageSelect" />
     </div>
+    <WorkspaceImageViewport
+      v-else-if="workspace.sourceImage"
+      :src="workspace.sourceImage"
+      alt="工作区图片"
+      class="min-h-0 flex-1"
+    />
   </section>
 </template>
