@@ -83,7 +83,7 @@ function closeWorkspace(workspaceId: string) {
 </script>
 
 <template>
-  <div class="flex min-h-dvh flex-col bg-white text-neutral-900">
+  <div class="flex min-h-dvh flex-col bg-app text-app-foreground">
     <TopBar @settings-click="openSettings" @file-action="handleFileAction" />
     <TabBar
       v-if="workspaceTabs.length"

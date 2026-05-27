@@ -16,7 +16,7 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="flex h-9 shrink-0 items-end gap-0.5 overflow-x-auto border-b border-neutral-200/80 bg-neutral-50/60 px-2"
+    class="flex h-9 shrink-0 items-end gap-0.5 overflow-x-auto border-b border-app-border bg-app px-2"
     role="tablist"
   >
     <div
@@ -26,8 +26,8 @@ const emit = defineEmits<{
       class="relative -mb-px flex max-w-48 shrink-0 items-center gap-1 rounded-t-md border pl-3 pr-1.5 py-1.5 transition-colors"
       :class="
         tab.id === activeTabId
-          ? 'border-neutral-200/80 border-b-white bg-white text-neutral-900'
-          : 'border-transparent text-neutral-500 hover:bg-neutral-100/80 hover:text-neutral-800'
+          ? 'border-app-border border-b-app bg-app text-app-foreground'
+          : 'border-transparent text-app-muted hover:bg-app-accent hover:text-app-foreground'
       "
       :aria-selected="tab.id === activeTabId"
     >
@@ -40,7 +40,7 @@ const emit = defineEmits<{
       </button>
       <button
         type="button"
-        class="inline-flex size-5 shrink-0 items-center justify-center rounded text-neutral-400 transition-colors hover:bg-neutral-200/70 hover:text-neutral-700"
+        class="inline-flex size-5 shrink-0 items-center justify-center rounded text-app-subtle transition-colors hover:bg-app-accent hover:text-app-foreground"
         aria-label="关闭工作区"
         @click.stop="emit('close', tab.id)"
       >
