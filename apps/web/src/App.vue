@@ -3,12 +3,14 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import RouteTransition from '@/components/RouteTransition.vue'
+import CloseUnsavedWorkspaceDialog from '@/components/CloseUnsavedWorkspaceDialog.vue'
 import SaveWorkspaceDialog from '@/components/SaveWorkspaceDialog.vue'
 import SavedProjectSidebar from '@/components/SavedProjectSidebar.vue'
 import WorkspaceRightSidebar from '@/components/WorkspaceRightSidebar.vue'
 import TabBar from '@/components/TabBar.vue'
 import TopBar from '@/components/TopBar.vue'
-import { openNewWorkspace } from '@/lib/open-new-workspace'
+import { openNewWorkspace, openNewWorkspaceWithImage } from '@/lib/open-new-workspace'
+import { pickImageFile, readImageFileAsDataUrl } from '@/lib/read-image-file'
 import { handleAppShortcut } from '@/lib/app-shortcuts'
 import { canExportWorkspace, exportWorkspaceImage } from '@/lib/export-workspace-image'
 import {
@@ -39,8 +41,11 @@ const saveDialogInitialName = ref('')
 const saveTargetWorkspace = ref<Workspace | null>(null)
 const saveError = ref('')
 const isSavingWorkspace = ref(false)
+const closeDialogOpen = ref(false)
+const closeTargetTabId = ref<string | null>(null)
 const sidebarVisible = ref(true)
 const rightSidebarVisible = ref(true)
+const openImageInputRef = ref<HTMLInputElement | null>(null)
 
 const appTabs = computed(() =>
   openTabs.value.flatMap((id) => {
@@ -113,6 +118,15 @@ const canExportActiveWorkspace = computed(() => {
   return canExportWorkspace(getWorkspace(workspaceId))
 })
 
+const closeTargetWorkspaceTitle = computed(() => {
+  const tabId = closeTargetTabId.value
+  if (!tabId) {
+    return ''
+  }
+
+  return getWorkspace(tabId)?.title ?? DEFAULT_WORKSPACE_TITLE
+})
+
 router.beforeEach((to, from) => {
   if (to.name === 'workspace' && typeof to.params.workspaceId === 'string') {
     addOpenWorkspace(to.params.workspaceId)
@@ -142,9 +156,31 @@ function toggleRightSidebar() {
   rightSidebarVisible.value = !rightSidebarVisible.value
 }
 
+function requestOpenImage(): void {
+  openImageInputRef.value?.click()
+}
+
+async function handleOpenImageInput(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files ? pickImageFile(input.files) : null
+  input.value = ''
+
+  if (!file) {
+    return
+  }
+
+  const dataUrl = await readImageFileAsDataUrl(file)
+  openNewWorkspaceWithImage(router, dataUrl)
+}
+
 function handleFileAction(action: 'new-workspace' | 'open' | 'save' | 'export-image') {
   if (action === 'new-workspace') {
     openNewWorkspace(router)
+    return
+  }
+
+  if (action === 'open') {
+    requestOpenImage()
     return
   }
 
@@ -226,6 +262,12 @@ async function confirmSaveWorkspace(name: string): Promise<void> {
     })
     saveDialogOpen.value = false
     saveTargetWorkspace.value = null
+
+    const pendingCloseTabId = closeTargetTabId.value
+    if (pendingCloseTabId) {
+      closeTargetTabId.value = null
+      performCloseTab(pendingCloseTabId)
+    }
   } catch (error) {
     saveError.value = error instanceof Error ? error.message : '保存失败'
   } finally {
@@ -237,6 +279,10 @@ function cancelSaveWorkspace(): void {
   saveDialogOpen.value = false
   saveTargetWorkspace.value = null
   saveError.value = ''
+
+  if (closeTargetTabId.value) {
+    closeDialogOpen.value = true
+  }
 }
 
 function onDocumentKeyDown(event: KeyboardEvent): void {
@@ -311,7 +357,7 @@ function navigateAfterCloseTab(nextTabId: string | null) {
   void router.replace('/')
 }
 
-function closeAppTab(tabId: string) {
+function performCloseTab(tabId: string): void {
   const isClosingActiveTab =
     (route.name === 'settings' && tabId === SETTINGS_TAB_ID) ||
     (route.name === 'workspace' && route.params.workspaceId === tabId)
@@ -323,6 +369,52 @@ function closeAppTab(tabId: string) {
   }
 
   navigateAfterCloseTab(nextTabId)
+}
+
+function closeAppTab(tabId: string): void {
+  if (isSettingsTab(tabId) || !isWorkspaceDirty(tabId)) {
+    performCloseTab(tabId)
+    return
+  }
+
+  closeTargetTabId.value = tabId
+  closeDialogOpen.value = true
+}
+
+function cancelCloseUnsavedWorkspace(): void {
+  closeDialogOpen.value = false
+  closeTargetTabId.value = null
+}
+
+function discardCloseUnsavedWorkspace(): void {
+  const tabId = closeTargetTabId.value
+  if (!tabId) {
+    return
+  }
+
+  closeDialogOpen.value = false
+  closeTargetTabId.value = null
+  performCloseTab(tabId)
+}
+
+function saveCloseUnsavedWorkspace(): void {
+  const tabId = closeTargetTabId.value
+  if (!tabId) {
+    return
+  }
+
+  const workspace = getWorkspace(tabId)
+  if (!workspace) {
+    cancelCloseUnsavedWorkspace()
+    return
+  }
+
+  closeDialogOpen.value = false
+  saveError.value = ''
+  saveTargetWorkspace.value = { ...workspace }
+  saveDialogInitialName.value =
+    workspace.title === DEFAULT_WORKSPACE_TITLE ? '' : workspace.title
+  saveDialogOpen.value = true
 }
 
 async function handleDeleteProject(workspaceId: string): Promise<void> {
@@ -383,6 +475,22 @@ async function handleDeleteProject(workspaceId: string): Promise<void> {
       :saving="isSavingWorkspace"
       @confirm="confirmSaveWorkspace"
       @cancel="cancelSaveWorkspace"
+    />
+
+    <CloseUnsavedWorkspaceDialog
+      :open="closeDialogOpen"
+      :workspace-title="closeTargetWorkspaceTitle"
+      @save="saveCloseUnsavedWorkspace"
+      @discard="discardCloseUnsavedWorkspace"
+      @cancel="cancelCloseUnsavedWorkspace"
+    />
+
+    <input
+      ref="openImageInputRef"
+      type="file"
+      accept="image/*"
+      class="hidden"
+      @change="handleOpenImageInput"
     />
   </div>
 </template>
