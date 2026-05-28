@@ -1,36 +1,51 @@
-# doushabao
+# Doushabao
 
-豆沙包：一款开源的 AI P 图软件
+![Doushabao logo](apps/web/src/assets/images/logo.png)
+
+**Doushabao** *(Chinese: 豆沙包 — a sweet red-bean bun)* is an open-source, web-based AI image editor. Like its mascot — a cheerful steamed bun with a bite taken out to reveal rich red-bean filling — the app is warm, approachable, and focused on what matters: making your images better, one edit at a time.
+
+Built for creators who want powerful AI editing without a heavy desktop workflow, Doushabao runs entirely in the browser and offers two complementary modes:
+
+- **Agent mode** — describe what you want in natural language; the AI analyzes your image and applies intelligent edits automatically.
+- **Editor mode** — mark regions on the canvas and give precise, localized instructions for fine-grained control.
+
+Whether you are retouching a photo, cleaning up distractions, or refining details, Doushabao keeps the process simple: open an image, edit with AI, and export the result — all in a clean, workspace-driven interface.
+
+Open source. Privacy-friendly. No install required.
 
 ## Monorepo
 
-本仓库使用 [pnpm workspace](https://pnpm.io/workspaces) 与 [Turborepo](https://turbo.build/) 管理多包项目。
+This repository is a multi-package monorepo managed with [pnpm workspace](https://pnpm.io/workspaces) and [Turborepo](https://turbo.build/).
 
 ```
 .
 ├── apps/
-│   └── web/          # Vue + Vite 前端应用 (@doushabao/web)
+│   └── web/          # Vue + Vite web app (@doushabao/web)
 ├── packages/
-│   ├── agents/       # Agent 编排与工具 (@doushabao/agents)
-│   └── core/         # 共享 TypeScript 库 (@doushabao/core)
+│   ├── agents/       # Agent orchestration and tools (@doushabao/agents)
+│   └── core/         # Shared TypeScript library (@doushabao/core)
 ├── pnpm-workspace.yaml
 └── turbo.json
 ```
 
-## 开发
+## Development
 
-在仓库根目录执行：
+From the repository root:
 
 ```bash
 pnpm install
-pnpm dev          # core + agents (tsc --watch) + web (vite)，workspace 库会先 build 一次
-pnpm build        # 构建所有包
-pnpm lint         #  lint 所有包
-pnpm test:unit    # 运行单元测试
+pnpm dev          # core + agents (tsc --watch) + web (vite); workspace packages are built once first
+pnpm build        # build all packages
+pnpm lint         # lint all packages
+pnpm test:unit    # run unit tests
 ```
 
-在单个应用中执行（例如 `apps/web`）：
+For a single app (for example, `apps/web`):
 
 ```bash
 pnpm --filter @doushabao/web dev
 ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
