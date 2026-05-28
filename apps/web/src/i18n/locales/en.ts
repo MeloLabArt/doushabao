@@ -12,7 +12,7 @@ const en = {
     name: 'Name',
     model: 'Model',
     settings: 'Settings',
-    help: 'Help',
+    github: 'GitHub',
     processing: 'Processing…',
     unnamed: 'Untitled',
     unnamedModel: 'Unnamed model',

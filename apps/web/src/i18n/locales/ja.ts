@@ -14,7 +14,7 @@ const ja: MessageSchema = {
     name: '名前',
     model: 'モデル',
     settings: '設定',
-    help: 'ヘルプ',
+    github: 'GitHub',
     processing: '処理中…',
     unnamed: '無題',
     unnamedModel: '名前なしモデル',

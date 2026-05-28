@@ -14,7 +14,7 @@ const zhCN: MessageSchema = {
     name: '名称',
     model: '模型',
     settings: '设置',
-    help: '帮助',
+    github: 'GitHub',
     processing: '处理中…',
     unnamed: '未命名',
     unnamedModel: '未命名模型',

@@ -14,7 +14,7 @@ const zhTW: MessageSchema = {
     name: '名稱',
     model: '模型',
     settings: '設定',
-    help: '說明',
+    github: 'GitHub',
     processing: '處理中…',
     unnamed: '未命名',
     unnamedModel: '未命名模型',

@@ -14,7 +14,7 @@ const ko: MessageSchema = {
     name: '이름',
     model: '모델',
     settings: '설정',
-    help: '도움말',
+    github: 'GitHub',
     processing: '처리 중…',
     unnamed: '제목 없음',
     unnamedModel: '이름 없는 모델',
