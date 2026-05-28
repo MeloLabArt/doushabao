@@ -1,6 +1,8 @@
 # Doushabao
 
-![Doushabao logo](apps/web/src/assets/images/logo.png)
+<p align="center">
+  <img src="apps/web/src/assets/images/logo.png" alt="Doushabao logo" width="160" />
+</p>
 
 **Doushabao** *(Chinese: 豆沙包 — a sweet red-bean bun)* is an open-source, web-based AI image editor. Like its mascot — a cheerful steamed bun with a bite taken out to reveal rich red-bean filling — the app is warm, approachable, and focused on what matters: making your images better, one edit at a time.
 
