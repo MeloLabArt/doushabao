@@ -1,6 +1,6 @@
 import type { MessageSchema } from './en'
 
-const zhTW: MessageSchema = {
+const zhHant: MessageSchema = {
   app: {
     name: '豆沙包',
   },
@@ -23,7 +23,7 @@ const zhTW: MessageSchema = {
     title: '語言',
     description: '選擇介面顯示語言。',
     'zh-CN': '简体中文',
-    'zh-TW': '繁體中文',
+    'zh-Hant': '繁體中文',
     en: 'English',
     ja: '日本語',
     ko: '한국어',
@@ -222,4 +222,4 @@ const zhTW: MessageSchema = {
   },
 }
 
-export default zhTW
+export default zhHant

@@ -23,7 +23,7 @@ const ko: MessageSchema = {
     title: '언어',
     description: '인터페이스 표시 언어를 선택합니다.',
     'zh-CN': '简体中文',
-    'zh-TW': '繁體中文',
+    'zh-Hant': '繁體中文',
     en: 'English',
     ja: '日本語',
     ko: '한국어',

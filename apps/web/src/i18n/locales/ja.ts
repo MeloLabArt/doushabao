@@ -23,7 +23,7 @@ const ja: MessageSchema = {
     title: '言語',
     description: 'インターフェースの表示言語を選択します。',
     'zh-CN': '简体中文',
-    'zh-TW': '繁體中文',
+    'zh-Hant': '繁體中文',
     en: 'English',
     ja: '日本語',
     ko: '한국어',

@@ -12,7 +12,7 @@ import en from './locales/en'
 import ja from './locales/ja'
 import ko from './locales/ko'
 import zhCN from './locales/zh-CN'
-import zhTW from './locales/zh-TW'
+import zhHant from './locales/zh-Hant'
 import type { MessageSchema } from './locales/en'
 
 export const i18n = createI18n<[MessageSchema], AppLocale>({
@@ -22,7 +22,7 @@ export const i18n = createI18n<[MessageSchema], AppLocale>({
   messages: {
     en,
     'zh-CN': zhCN,
-    'zh-TW': zhTW,
+    'zh-Hant': zhHant,
     ja,
     ko,
   },
