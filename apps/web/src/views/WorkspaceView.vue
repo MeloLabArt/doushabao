@@ -3,6 +3,10 @@ import { LoaderCircle } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+defineOptions({
+  name: 'WorkspaceView',
+})
+
 import ImageDropzone from '@/components/ImageDropzone.vue'
 import WorkspaceImageViewport from '@/components/WorkspaceImageViewport.vue'
 import { pickImageFile, readImageFileAsDataUrl } from '@/lib/read-image-file'
@@ -17,6 +21,12 @@ import {
   workspaceContentRevision,
   workspaceEditingIds,
 } from '@/lib/workspace-session'
+import {
+  getWorkspaceEditMode,
+  getWorkspaceEditorMarks,
+  setWorkspaceEditorMarks,
+  workspaceUiRevision,
+} from '@/lib/workspace-ui-state'
 import { hydrateWorkspaceImage } from '@/lib/workspace-storage'
 import type { Workspace } from '@/types/workspace'
 
@@ -48,6 +58,22 @@ const isEditing = computed(() => {
   workspaceEditingIds.value
   return isWorkspaceEditing(props.workspaceId)
 })
+
+const editMode = computed(() => {
+  workspaceUiRevision.value
+  return getWorkspaceEditMode(props.workspaceId)
+})
+
+const editorMarks = computed(() => {
+  workspaceUiRevision.value
+  return getWorkspaceEditorMarks(props.workspaceId)
+})
+
+const annotationMode = computed(() => editMode.value === 'editor' && !isEditing.value)
+
+function handleEditorMarksUpdate(marks: typeof editorMarks.value) {
+  setWorkspaceEditorMarks(props.workspaceId, marks)
+}
 
 async function syncHydratedImage(): Promise<void> {
   const record = workspaceRecord.value
@@ -175,6 +201,9 @@ defineExpose({
           :src="displaySourceImage"
           alt="工作区图片"
           class="h-full"
+          :annotation-mode="annotationMode"
+          :marks="editorMarks"
+          @update:marks="handleEditorMarksUpdate"
         />
         <div
           v-if="isEditing"

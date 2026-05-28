@@ -4,6 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import WorkspaceRightSidebar from '../components/WorkspaceRightSidebar.vue'
 import { createDraftWorkspace, getWorkspace, stageWorkspaceChanges } from '../lib/workspace-session'
+import { clearWorkspaceUiState } from '../lib/workspace-ui-state'
 
 vi.mock('../lib/run-workspace-agent', () => ({
   runWorkspaceAgent: vi.fn(),
@@ -27,6 +28,7 @@ function stageWorkspaceWithImage(workspaceId: string) {
 describe('WorkspaceRightSidebar', () => {
   beforeEach(() => {
     localStorage.clear()
+    clearWorkspaceUiState()
     mockedRunWorkspaceAgent.mockReset()
   })
 
@@ -86,7 +88,7 @@ describe('WorkspaceRightSidebar', () => {
     expect(wrapper.find('button:not([role="tab"])').attributes('disabled')).toBeUndefined()
   })
 
-  it('shows export action when editor mode is selected', async () => {
+  it('shows editor annotation panel when editor mode is selected', async () => {
     createDraftWorkspace('workspace-1')
     stageWorkspaceWithImage('workspace-1')
 
@@ -100,8 +102,9 @@ describe('WorkspaceRightSidebar', () => {
     const editorTab = wrapper.findAll('button[role="tab"]').find((button) => button.text() === 'Editor')
     await editorTab!.trigger('click')
 
+    expect(wrapper.text()).toContain('在图片上拖拽画圈')
+    expect(wrapper.text()).toContain('开始修图')
     expect(wrapper.text()).toContain('导出图片')
-    expect(wrapper.text()).toContain('将当前工作区图片导出到本地文件')
     expect(wrapper.find('textarea').exists()).toBe(false)
   })
 
@@ -125,6 +128,7 @@ describe('WorkspaceRightSidebar', () => {
       },
       analysisRaw: '{}',
       images: ['data:image/png;base64,result'],
+      sourceDimensions: { width: 1200, height: 900 },
     })
 
     const wrapper = mount(WorkspaceRightSidebar, {

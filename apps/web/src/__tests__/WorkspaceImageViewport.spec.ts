@@ -22,7 +22,7 @@ async function mockViewportLayout(
 
   await flushPromises()
 
-  const viewport = wrapper.element as HTMLDivElement
+  const viewport = wrapper.find('[data-testid="image-viewport"]').element as HTMLDivElement
   viewport.getBoundingClientRect = () =>
     ({
       width: viewportWidth,
@@ -47,7 +47,7 @@ async function mockViewportLayout(
 }
 
 function getTransformStyle(wrapper: ReturnType<typeof mount>): string {
-  return wrapper.find('.absolute').attributes('style') ?? ''
+  return wrapper.find('[data-testid="image-viewport"] > .absolute').attributes('style') ?? ''
 }
 
 function parseTransform(style: string): { scale: number; translateX: number; translateY: number } {
@@ -252,6 +252,67 @@ describe('WorkspaceImageViewport', () => {
     const transform = parseTransform(getTransformStyle(wrapper))
     expect(transform.translateX).toBeCloseTo(114, 0)
     expect(transform.translateY).toBeCloseTo(68, 0)
+
+    wrapper.unmount()
+  })
+
+  it('renders numbered mark overlays', async () => {
+    const wrapper = mount(WorkspaceImageViewport, {
+      props: {
+        src: 'data:image/png;base64,abc',
+        annotationMode: true,
+        marks: [
+          {
+            id: 'mark-1',
+            centerX: 0.5,
+            centerY: 0.5,
+            radius: 0.1,
+            description: '',
+          },
+        ],
+      },
+      attachTo: document.body,
+    })
+
+    await mockViewportLayout(wrapper)
+
+    expect(wrapper.find('text').text()).toBe('1')
+
+    wrapper.unmount()
+  })
+
+  it('resets view to fit when clicking the fit button', async () => {
+    const wrapper = mount(WorkspaceImageViewport, {
+      props: {
+        src: 'data:image/png;base64,abc',
+      },
+      attachTo: document.body,
+    })
+
+    const viewport = await mockViewportLayout(wrapper)
+    const fitted = parseTransform(getTransformStyle(wrapper))
+
+    viewport.dispatchEvent(
+      new WheelEvent('wheel', {
+        deltaY: -100,
+        deltaMode: WheelEvent.DOM_DELTA_LINE,
+        clientX: 400,
+        clientY: 300,
+        bubbles: true,
+      }),
+    )
+    await flushPromises()
+
+    const zoomed = parseTransform(getTransformStyle(wrapper))
+    expect(zoomed.scale).toBeGreaterThan(fitted.scale)
+
+    await wrapper.get('[aria-label="适应画布"]').trigger('click')
+    await flushPromises()
+
+    const reset = parseTransform(getTransformStyle(wrapper))
+    expect(reset.scale).toBeCloseTo(fitted.scale, 2)
+    expect(reset.translateX).toBeCloseTo(fitted.translateX, 0)
+    expect(reset.translateY).toBeCloseTo(fitted.translateY, 0)
 
     wrapper.unmount()
   })

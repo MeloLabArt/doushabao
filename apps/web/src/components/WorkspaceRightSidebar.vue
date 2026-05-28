@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { AgentImageAnalysis } from '@doushabao/agents'
-import { Download, LoaderCircle, Sparkles } from '@lucide/vue'
+import { Download, LoaderCircle, Sparkles, Trash2, Wand2 } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 
 import {
@@ -8,27 +7,46 @@ import {
   DEFICIENCY_SEVERITY_LABELS,
   IMAGE_TYPE_LABELS,
 } from '@/lib/agent-labels'
-import type { EditMode } from '@/lib/edit-mode'
 import { exportWorkspaceImage } from '@/lib/export-workspace-image'
 import { runWorkspaceAgent } from '@/lib/run-workspace-agent'
-import { getWorkspace, openWorkspaces, setWorkspaceEditing, applyWorkspaceGeneratedImage, workspaceImageRevision } from '@/lib/workspace-session'
+import { runWorkspaceEditor } from '@/lib/run-workspace-editor'
+import {
+  getWorkspace,
+  getWorkspaceImageRevision,
+  openWorkspaces,
+  setWorkspaceEditing,
+  applyWorkspaceGeneratedImage,
+} from '@/lib/workspace-session'
+import {
+  clearWorkspaceRunPresentation,
+  getWorkspaceAgentPrompt,
+  getWorkspaceAnalysis,
+  getWorkspaceEditMode,
+  getWorkspaceEditorMarks,
+  getWorkspaceRunError,
+  getWorkspaceRunStep,
+  isWorkspaceRunning,
+  setWorkspaceAgentPrompt,
+  setWorkspaceAnalysis,
+  setWorkspaceEditMode,
+  setWorkspaceEditorMarks,
+  setWorkspaceRunError,
+  setWorkspaceRunStep,
+  workspaceUiRevision,
+  clearWorkspaceEditorMarks,
+} from '@/lib/workspace-ui-state'
+import type { EditorMark } from '@/types/editor-mark'
 
 const props = defineProps<{
   activeWorkspaceId: string
 }>()
 
-const editMode = ref<EditMode>('agent')
-const prompt = ref('')
-const isRunning = ref(false)
-const runStep = ref<'analysis' | 'edit' | null>(null)
-const error = ref('')
-const analysis = ref<AgentImageAnalysis | null>(null)
 const isExporting = ref(false)
 const exportError = ref('')
 
-const modeOptions: { value: EditMode; label: string }[] = [
-  { value: 'agent', label: 'Agent' },
-  { value: 'editor', label: 'Editor' },
+const modeOptions = [
+  { value: 'agent' as const, label: 'Agent' },
+  { value: 'editor' as const, label: 'Editor' },
 ]
 
 const workspace = computed(() => {
@@ -41,9 +59,88 @@ const workspace = computed(() => {
   return getWorkspace(props.activeWorkspaceId)
 })
 
+const editMode = computed(() => {
+  workspaceUiRevision.value
+
+  if (!props.activeWorkspaceId) {
+    return 'agent' as const
+  }
+
+  return getWorkspaceEditMode(props.activeWorkspaceId)
+})
+
+const editorMarks = computed(() => {
+  workspaceUiRevision.value
+
+  if (!props.activeWorkspaceId) {
+    return [] as EditorMark[]
+  }
+
+  return getWorkspaceEditorMarks(props.activeWorkspaceId)
+})
+
+const agentPrompt = computed({
+  get() {
+    workspaceUiRevision.value
+
+    if (!props.activeWorkspaceId) {
+      return ''
+    }
+
+    return getWorkspaceAgentPrompt(props.activeWorkspaceId)
+  },
+  set(value: string) {
+    if (!props.activeWorkspaceId) {
+      return
+    }
+
+    setWorkspaceAgentPrompt(props.activeWorkspaceId, value)
+  },
+})
+
 const hasImage = computed(
   () => Boolean(workspace.value?.sourceImage || workspace.value?.hasSourceImage),
 )
+
+const isRunning = computed(() => {
+  workspaceUiRevision.value
+
+  if (!props.activeWorkspaceId) {
+    return false
+  }
+
+  return isWorkspaceRunning(props.activeWorkspaceId)
+})
+
+const runStep = computed(() => {
+  workspaceUiRevision.value
+
+  if (!props.activeWorkspaceId) {
+    return null
+  }
+
+  return getWorkspaceRunStep(props.activeWorkspaceId)
+})
+
+const error = computed(() => {
+  workspaceUiRevision.value
+
+  if (!props.activeWorkspaceId) {
+    return ''
+  }
+
+  return getWorkspaceRunError(props.activeWorkspaceId)
+})
+
+const analysis = computed(() => {
+  workspaceUiRevision.value
+
+  if (!props.activeWorkspaceId) {
+    return null
+  }
+
+  return getWorkspaceAnalysis(props.activeWorkspaceId)
+})
 
 const runStatusText = computed(() => {
   if (runStep.value === 'analysis') {
@@ -51,40 +148,54 @@ const runStatusText = computed(() => {
   }
 
   if (runStep.value === 'edit') {
-    return '正在修图…'
+    return editMode.value === 'editor' ? '正在按标注修图…' : '正在修图…'
   }
 
   return ''
 })
 
-function resetAgentState() {
-  if (props.activeWorkspaceId) {
-    setWorkspaceEditing(props.activeWorkspaceId, false)
+function setEditMode(mode: 'agent' | 'editor') {
+  if (!props.activeWorkspaceId || isWorkspaceRunning(props.activeWorkspaceId)) {
+    return
   }
 
-  prompt.value = ''
-  error.value = ''
-  analysis.value = null
-  isRunning.value = false
-  runStep.value = null
-  isExporting.value = false
-  exportError.value = ''
+  setWorkspaceEditMode(props.activeWorkspaceId, mode)
+}
+
+function updateMarkDescription(markId: string, description: string) {
+  if (!props.activeWorkspaceId) {
+    return
+  }
+
+  const nextMarks = editorMarks.value.map((mark) =>
+    mark.id === markId ? { ...mark, description } : mark,
+  )
+
+  setWorkspaceEditorMarks(props.activeWorkspaceId, nextMarks)
+}
+
+function removeMark(markId: string) {
+  if (!props.activeWorkspaceId || isWorkspaceRunning(props.activeWorkspaceId)) {
+    return
+  }
+
+  setWorkspaceEditorMarks(
+    props.activeWorkspaceId,
+    editorMarks.value.filter((mark) => mark.id !== markId),
+  )
 }
 
 watch(
-  () => props.activeWorkspaceId,
+  () =>
+    props.activeWorkspaceId
+      ? getWorkspaceImageRevision(props.activeWorkspaceId)
+      : 0,
   () => {
-    resetAgentState()
-  },
-)
+    if (!props.activeWorkspaceId || isWorkspaceRunning(props.activeWorkspaceId)) {
+      return
+    }
 
-watch(
-  () => workspaceImageRevision.value,
-  () => {
-    analysis.value = null
-    error.value = ''
-    isRunning.value = false
-    runStep.value = null
+    clearWorkspaceRunPresentation(props.activeWorkspaceId)
   },
 )
 
@@ -109,22 +220,24 @@ async function handleExportImage() {
 
 async function handleAgentRun() {
   const currentWorkspace = workspace.value
+  const workspaceId = currentWorkspace?.id
 
-  if (!currentWorkspace || isRunning.value) {
+  if (!currentWorkspace || !workspaceId || isWorkspaceRunning(workspaceId)) {
     return
   }
 
-  isRunning.value = true
-  runStep.value = 'analysis'
-  error.value = ''
-  analysis.value = null
-  setWorkspaceEditing(currentWorkspace.id, true)
+  const prompt = getWorkspaceAgentPrompt(workspaceId)
+
+  setWorkspaceRunStep(workspaceId, 'analysis')
+  setWorkspaceRunError(workspaceId, '')
+  setWorkspaceAnalysis(workspaceId, null)
+  setWorkspaceEditing(workspaceId, true)
 
   try {
-    const result = await runWorkspaceAgent(currentWorkspace, prompt.value, (step) => {
-      runStep.value = step
+    const result = await runWorkspaceAgent(currentWorkspace, prompt, (step) => {
+      setWorkspaceRunStep(workspaceId, step)
     })
-    analysis.value = result.analysis
+    setWorkspaceAnalysis(workspaceId, result.analysis)
 
     const nextImage = result.images[0]
     if (!nextImage) {
@@ -133,11 +246,42 @@ async function handleAgentRun() {
 
     await applyWorkspaceGeneratedImage(currentWorkspace, nextImage)
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Agent 执行失败'
+    setWorkspaceRunError(workspaceId, err instanceof Error ? err.message : 'Agent 执行失败')
   } finally {
-    setWorkspaceEditing(currentWorkspace.id, false)
-    isRunning.value = false
-    runStep.value = null
+    setWorkspaceEditing(workspaceId, false)
+    setWorkspaceRunStep(workspaceId, null)
+  }
+}
+
+async function handleEditorRun() {
+  const currentWorkspace = workspace.value
+  const workspaceId = currentWorkspace?.id
+
+  if (!currentWorkspace || !workspaceId || isWorkspaceRunning(workspaceId)) {
+    return
+  }
+
+  const marks = getWorkspaceEditorMarks(workspaceId)
+
+  setWorkspaceRunStep(workspaceId, 'edit')
+  setWorkspaceRunError(workspaceId, '')
+  setWorkspaceEditing(workspaceId, true)
+
+  let succeeded = false
+
+  try {
+    const nextImage = await runWorkspaceEditor(currentWorkspace, marks)
+    await applyWorkspaceGeneratedImage(currentWorkspace, nextImage)
+    succeeded = true
+  } catch (err) {
+    setWorkspaceRunError(workspaceId, err instanceof Error ? err.message : 'Editor 修图失败')
+  } finally {
+    setWorkspaceEditing(workspaceId, false)
+    setWorkspaceRunStep(workspaceId, null)
+
+    if (succeeded) {
+      clearWorkspaceEditorMarks(workspaceId)
+    }
   }
 }
 
@@ -163,14 +307,15 @@ const inputClass =
             :key="option.value"
             type="button"
             role="tab"
-            class="rounded px-2 py-0.5 text-[11px] font-medium transition-colors"
+            class="rounded px-2 py-0.5 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             :class="
               editMode === option.value
                 ? 'bg-app-elevated text-app-foreground shadow-sm'
                 : 'text-app-muted hover:text-app-foreground'
             "
             :aria-selected="editMode === option.value"
-            @click="editMode = option.value"
+            :disabled="isRunning"
+            @click="setEditMode(option.value)"
           >
             {{ option.label }}
           </button>
@@ -189,28 +334,81 @@ const inputClass =
 
       <div v-else-if="editMode === 'editor'" class="flex flex-col gap-3">
         <p class="text-xs leading-relaxed text-app-muted">
-          将当前工作区图片导出到本地文件。
+          在图片上拖拽画圈（带半径预览线）标注修改位置，按顺序自动编号；已有圈可拖拽移动。圈仅作位置指引，修图会对整张图生效。填写描述后提交，可与 Agent 模式随时切换。
+        </p>
+
+        <section v-if="editorMarks.length" class="space-y-2">
+          <h3 class="text-xs font-medium text-app-muted uppercase">标注区域</h3>
+          <div
+            v-for="(mark, index) in editorMarks"
+            :key="mark.id"
+            class="rounded-lg border border-app-border bg-app-accent p-2.5"
+          >
+            <div class="mb-1.5 flex items-center justify-between gap-2">
+              <span class="text-xs font-medium text-app-foreground">{{ index + 1 }} 号圈</span>
+              <button
+                type="button"
+                class="rounded p-1 text-app-muted transition hover:bg-app-elevated hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                :disabled="isRunning"
+                aria-label="删除标注"
+                @click="removeMark(mark.id)"
+              >
+                <Trash2 :size="13" :stroke-width="1.75" />
+              </button>
+            </div>
+            <textarea
+              :value="mark.description"
+              rows="2"
+              placeholder="描述此区域要如何修改"
+              :class="inputClass"
+              :disabled="isRunning"
+              @input="updateMarkDescription(mark.id, ($event.target as HTMLTextAreaElement).value)"
+            />
+          </div>
+        </section>
+
+        <p v-else class="rounded-lg border border-dashed border-app-border px-3 py-4 text-center text-xs text-app-subtle">
+          尚未圈选区域
         </p>
 
         <button
           type="button"
-          class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-app-border bg-app-accent px-3 py-2 text-sm font-medium text-app-foreground transition hover:bg-app-elevated disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="isExporting"
-          @click="handleExportImage"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-app-primary px-3 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="isRunning || editorMarks.length === 0"
+          @click="handleEditorRun"
         >
-          <LoaderCircle v-if="isExporting" :size="15" :stroke-width="1.75" class="animate-spin" />
-          <Download v-else :size="15" :stroke-width="1.75" />
-          {{ isExporting ? '导出中…' : '导出图片' }}
+          <LoaderCircle v-if="isRunning" :size="15" :stroke-width="1.75" class="animate-spin" />
+          <Wand2 v-else :size="15" :stroke-width="1.75" />
+          {{ isRunning ? '处理中…' : '开始修图' }}
         </button>
 
-        <p v-if="exportError" class="text-xs text-red-600 dark:text-red-400">{{ exportError }}</p>
+        <p v-if="runStatusText" class="text-xs text-app-muted">{{ runStatusText }}</p>
+        <p v-if="error" class="text-xs text-red-600 dark:text-red-400">{{ error }}</p>
+
+        <div class="border-t border-app-border pt-3">
+          <button
+            type="button"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-app-border bg-app-accent px-3 py-2 text-sm font-medium text-app-foreground transition hover:bg-app-elevated disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="isExporting || isRunning"
+            @click="handleExportImage"
+          >
+            <LoaderCircle v-if="isExporting" :size="15" :stroke-width="1.75" class="animate-spin" />
+            <Download v-else :size="15" :stroke-width="1.75" />
+            {{ isExporting ? '导出中…' : '导出图片' }}
+          </button>
+          <p v-if="exportError" class="mt-2 text-xs text-red-600 dark:text-red-400">{{ exportError }}</p>
+        </div>
       </div>
 
       <div v-else class="flex min-h-0 flex-1 flex-col gap-3">
+        <p class="text-xs leading-relaxed text-app-muted">
+          自动分析并修图；完成后可切换到 Editor 做局部标注精修。
+        </p>
+
         <label class="block space-y-1.5">
           <span class="text-sm font-medium text-app-foreground">修图需求（可选）</span>
           <textarea
-            v-model="prompt"
+            v-model="agentPrompt"
             rows="6"
             placeholder="描述你想对图片做的修改；留空则根据分析结果自动优化"
             :class="inputClass"

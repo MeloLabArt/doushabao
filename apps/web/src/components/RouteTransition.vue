@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import gsap from 'gsap'
+import { KeepAlive } from 'vue'
 import { RouterView } from 'vue-router'
 
 const props = defineProps<{
@@ -42,7 +43,9 @@ function onLeave(el: Element, done: () => void) {
       @enter="onEnter"
       @leave="onLeave"
     >
-      <component :is="Component" :key="route.path" class="flex min-h-0 flex-1 flex-col" />
+      <KeepAlive include="WorkspaceView">
+        <component :is="Component" :key="route.path" class="flex min-h-0 flex-1 flex-col" />
+      </KeepAlive>
     </Transition>
   </RouterView>
 </template>

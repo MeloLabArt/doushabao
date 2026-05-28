@@ -16,6 +16,7 @@ import {
   popWorkspaceImageUndo,
   recordWorkspaceImageHistory,
 } from '@/lib/workspace-image-history'
+import { clearWorkspaceEditorMarks, clearWorkspaceUiState, removeWorkspaceUiState } from '@/lib/workspace-ui-state'
 
 export { canUndoWorkspaceImage, recordWorkspaceImageHistory } from '@/lib/workspace-image-history'
 
@@ -92,9 +93,20 @@ export function stageWorkspaceChanges(workspace: Workspace): void {
   workspaceContentRevision.value += 1
 }
 
-export const workspaceImageRevision = ref(0)
+export const workspaceImageRevisions = ref<Record<string, number>>({})
 export const workspaceContentRevision = ref(0)
 export const workspaceEditingIds = ref<Set<string>>(new Set())
+
+export function getWorkspaceImageRevision(workspaceId: string): number {
+  return workspaceImageRevisions.value[workspaceId] ?? 0
+}
+
+function bumpWorkspaceImageRevision(workspaceId: string): void {
+  workspaceImageRevisions.value = {
+    ...workspaceImageRevisions.value,
+    [workspaceId]: getWorkspaceImageRevision(workspaceId) + 1,
+  }
+}
 
 export function setWorkspaceEditing(workspaceId: string, editing: boolean): void {
   const next = new Set(workspaceEditingIds.value)
@@ -114,7 +126,8 @@ export function isWorkspaceEditing(workspaceId: string): boolean {
 
 export function stageWorkspaceImageChange(workspace: Workspace): void {
   stageWorkspaceChanges(workspace)
-  workspaceImageRevision.value += 1
+  clearWorkspaceEditorMarks(workspace.id)
+  bumpWorkspaceImageRevision(workspace.id)
 }
 
 export async function applyWorkspaceGeneratedImage(
@@ -134,6 +147,7 @@ export async function applyWorkspaceGeneratedImage(
   }
 
   stageWorkspaceChanges(nextWorkspace)
+  clearWorkspaceEditorMarks(workspace.id)
 
   return nextWorkspace
 }
@@ -154,7 +168,8 @@ export async function undoWorkspaceImageChange(workspaceId: string): Promise<Wor
   }
 
   stageWorkspaceChanges(nextWorkspace)
-  workspaceImageRevision.value += 1
+  clearWorkspaceEditorMarks(workspaceId)
+  bumpWorkspaceImageRevision(workspaceId)
 
   return nextWorkspace
 }
@@ -228,6 +243,7 @@ export async function removeSavedProject(id: string): Promise<string | null> {
   await deleteWorkspace(id)
 
   clearWorkspaceImageHistory(id)
+  removeWorkspaceUiState(id)
 
   return nextTabId
 }
@@ -265,6 +281,7 @@ export function clearDraftWorkspaces(): void {
   dirtyWorkspaceIds.value = new Set()
   workspaceEditingIds.value = new Set()
   workspaceContentRevision.value = 0
-  workspaceImageRevision.value = 0
+  workspaceImageRevisions.value = {}
   clearAllWorkspaceImageHistory()
+  clearWorkspaceUiState()
 }

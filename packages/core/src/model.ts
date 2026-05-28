@@ -35,8 +35,12 @@ export async function generateImage(
   }
 
   const sourceDimensions = await readImageDimensions(sourceContent.image);
-  const apiImage = await prepareImageForApi(sourceContent.image);
-  const apiContents: Content[] = [{ ...sourceContent, image: apiImage }];
+  const apiContents: Content[] = await Promise.all(
+    validatedContents.map(async (content) => ({
+      ...content,
+      image: await prepareImageForApi(content.image),
+    })),
+  );
   const client = createOpenRouterClient(validatedConfig);
   const messages = buildMessages(apiContents, validatedStyles, resolveSystemPrompt(options), {
     imageFirst: true,
