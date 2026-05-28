@@ -169,7 +169,7 @@ defineExpose({
 </script>
 
 <template>
-  <section v-if="workspaceRecord" class="flex min-h-0 flex-1 flex-col bg-app-elevated">
+  <section v-if="workspaceRecord" class="app-workspace">
     <p v-if="isLoadingImage" class="flex flex-1 items-center justify-center text-sm text-app-muted">
       {{ t('workspace.loadingImage') }}
     </p>
@@ -180,7 +180,7 @@ defineExpose({
       <ImageDropzone @select="handleImageSelect" />
     </div>
     <div v-else-if="displaySourceImage" class="flex min-h-0 flex-1 flex-col">
-      <div class="flex shrink-0 items-center justify-end gap-2 border-b border-app-border px-3 py-2">
+      <div class="app-workspace-toolbar">
         <input
           ref="replaceInputRef"
           type="file"
@@ -190,30 +190,32 @@ defineExpose({
         />
         <button
           type="button"
-          class="rounded-md border border-app-border px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          class="rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground disabled:cursor-not-allowed disabled:opacity-50"
           :disabled="isEditing"
           @click="openReplacePicker"
         >
           {{ t('workspace.replaceImage') }}
         </button>
       </div>
-      <div class="relative min-h-0 flex-1">
-        <WorkspaceImageViewport
-          :key="displaySourceImage"
-          :src="displaySourceImage"
-          :alt="t('workspace.image')"
-          class="h-full"
-          :annotation-mode="annotationMode"
-          :marks="editorMarks"
-          @update:marks="handleEditorMarksUpdate"
-        />
-        <div
-          v-if="isEditing"
-          class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-app-elevated/80 backdrop-blur-sm"
-          aria-live="polite"
-        >
-          <LoaderCircle :size="24" :stroke-width="1.75" class="animate-spin text-app-muted" />
-          <p class="text-sm font-medium text-app-foreground">{{ t('workspace.editing') }}</p>
+      <div class="app-workspace-canvas-wrap">
+        <div class="app-workspace-canvas">
+          <WorkspaceImageViewport
+            :key="displaySourceImage"
+            :src="displaySourceImage"
+            :alt="t('workspace.image')"
+            class="h-full"
+            :annotation-mode="annotationMode"
+            :marks="editorMarks"
+            @update:marks="handleEditorMarksUpdate"
+          />
+          <div
+            v-if="isEditing"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-app-elevated/80 backdrop-blur-sm"
+            aria-live="polite"
+          >
+            <LoaderCircle :size="24" :stroke-width="1.75" class="animate-spin text-app-muted" />
+            <p class="text-sm font-medium text-app-foreground">{{ t('workspace.editing') }}</p>
+          </div>
         </div>
       </div>
     </div>

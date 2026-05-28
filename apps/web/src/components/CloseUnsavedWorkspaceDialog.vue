@@ -52,7 +52,7 @@ const { t } = useI18n()
           </button>
           <button
             type="button"
-            class="rounded-lg bg-app-primary px-4 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90"
+            class="app-btn-primary px-4"
             @click="emit('save')"
           >
             {{ t('common.save') }}

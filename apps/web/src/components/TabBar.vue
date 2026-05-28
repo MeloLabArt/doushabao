@@ -18,20 +18,13 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
-    class="flex h-9 shrink-0 items-stretch gap-0.5 overflow-x-auto overflow-y-hidden border-b border-app-border bg-app px-2"
-    role="tablist"
-  >
+  <div class="app-tabbar" role="tablist">
     <div
       v-for="tab in tabs"
       :key="tab.id"
       role="tab"
-      class="flex h-full max-w-52 shrink-0 items-center gap-1 rounded-t-md border border-b-0 pl-3 pr-1.5 transition-colors"
-      :class="
-        tab.id === activeTabId
-          ? 'border-app-border bg-app-elevated text-app-foreground'
-          : 'border-transparent text-app-muted hover:bg-app-accent hover:text-app-foreground'
-      "
+      class="app-tab"
+      :class="tab.id === activeTabId ? 'app-tab-active' : 'app-tab-inactive'"
       :aria-selected="tab.id === activeTabId"
     >
       <button

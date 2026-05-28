@@ -532,7 +532,7 @@ async function handleDeleteProject(workspaceId: string): Promise<void> {
           @select="selectTab"
           @close="closeAppTab"
         />
-        <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-app-elevated">
+        <main class="flex min-h-0 flex-1 flex-col overflow-hidden bg-app-surface">
           <RouteTransition :direction="transitionDirection" />
         </main>
       </div>

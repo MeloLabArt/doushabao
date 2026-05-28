@@ -42,8 +42,7 @@ const localeOptions = computed(() =>
 const analysisModels = computed(() => listModelsByRole(form.value, 'analysis'))
 const editModels = computed(() => listModelsByRole(form.value, 'edit'))
 
-const inputClass =
-  'w-full rounded-lg border border-app-border bg-app-input px-3 py-2 text-sm text-app-foreground outline-none transition placeholder:text-app-subtle focus:border-app-muted focus:ring-2 focus:ring-app-accent'
+const inputClass = 'app-field'
 
 const roleOptions = computed(() => [
   { value: 'analysis' as const, label: t('roles.analysis') },
@@ -430,7 +429,7 @@ async function handleSubmit() {
         <button
           type="submit"
           :disabled="saving"
-          class="rounded-lg bg-app-primary px-4 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          class="app-btn-primary px-4 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {{ saving ? t('common.saving') : t('common.save') }}
         </button>

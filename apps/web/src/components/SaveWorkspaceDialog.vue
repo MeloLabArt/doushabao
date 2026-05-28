@@ -20,8 +20,7 @@ const name = ref('')
 const validationError = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
 
-const inputClass =
-  'w-full rounded-lg border border-app-border bg-app-input px-3 py-2 text-sm text-app-foreground outline-none transition placeholder:text-app-subtle focus:border-app-muted focus:ring-2 focus:ring-app-accent'
+const inputClass = 'app-field'
 
 watch(
   () => [props.open, props.initialName] as const,
@@ -118,7 +117,7 @@ function onBackdropClick(): void {
             </button>
             <button
               type="button"
-              class="rounded-lg bg-app-primary px-4 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              class="app-btn-primary px-4 disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="props.saving"
               @click="handleSubmit"
             >

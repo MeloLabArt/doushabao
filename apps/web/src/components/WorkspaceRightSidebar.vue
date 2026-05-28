@@ -361,8 +361,7 @@ async function handleEditorRun() {
   }
 }
 
-const inputClass =
-  'w-full resize-none rounded-lg border border-app-border bg-app-input px-3 py-2 text-sm text-app-foreground outline-none transition placeholder:text-app-subtle focus:border-app-muted focus:ring-2 focus:ring-app-accent'
+const inputClass = 'app-field resize-none'
 </script>
 
 <template>
@@ -374,7 +373,7 @@ const inputClass =
       <div class="flex items-center justify-between gap-2">
         <h2 class="text-xs font-medium tracking-wide text-app-muted uppercase">{{ t('editorPanel.title') }}</h2>
         <div
-          class="inline-flex rounded-md border border-app-border bg-app-accent p-0.5"
+          class="app-segmented"
           role="tablist"
           :aria-label="t('editorPanel.modeLabel')"
         >
@@ -383,12 +382,8 @@ const inputClass =
             :key="option.value"
             type="button"
             role="tab"
-            class="rounded px-2 py-0.5 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-            :class="
-              editMode === option.value
-                ? 'bg-app-elevated text-app-foreground shadow-sm'
-                : 'text-app-muted hover:text-app-foreground'
-            "
+            class="app-segmented-item"
+            :class="editMode === option.value ? 'app-segmented-item-active' : 'app-segmented-item-inactive'"
             :aria-selected="editMode === option.value"
             :disabled="isRunning"
             @click="setEditMode(option.value)"
@@ -399,7 +394,7 @@ const inputClass =
       </div>
     </div>
 
-    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
+    <div class="app-panel-body">
       <p v-if="!activeWorkspaceId" class="px-1 py-6 text-center text-xs text-app-subtle">
         {{ t('editorPanel.noWorkspace') }}
       </p>
@@ -418,13 +413,13 @@ const inputClass =
           <div
             v-for="(mark, index) in editorMarks"
             :key="mark.id"
-            class="rounded-lg border border-app-border bg-app-accent p-2.5"
+            class="app-card p-2.5"
           >
             <div class="mb-1.5 flex items-center justify-between gap-2">
               <span class="text-xs font-medium text-app-foreground">{{ t('editorPanel.circleLabel', { number: index + 1 }) }}</span>
               <button
                 type="button"
-                class="rounded p-1 text-app-muted transition hover:bg-app-elevated hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                class="rounded p-1 text-app-muted transition hover:bg-app-surface hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                 :disabled="isRunning"
                 :aria-label="t('editorPanel.deleteAnnotation')"
                 @click="removeMark(mark.id)"
@@ -443,7 +438,7 @@ const inputClass =
           </div>
         </section>
 
-        <p v-else class="rounded-lg border border-dashed border-app-border px-3 py-4 text-center text-xs text-app-subtle">
+        <p v-else class="app-card border-dashed px-3 py-4 text-center text-xs text-app-subtle">
           {{ t('editorPanel.noAnnotations') }}
         </p>
 
@@ -460,7 +455,7 @@ const inputClass =
 
         <button
           type="button"
-          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-app-primary px-3 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          class="app-btn-primary w-full"
           :disabled="isRunning || editorMarks.length === 0"
           @click="handleEditorRun"
         >
@@ -475,7 +470,7 @@ const inputClass =
         <div class="border-t border-app-border pt-3">
           <button
             type="button"
-            class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-app-border bg-app-accent px-3 py-2 text-sm font-medium text-app-foreground transition hover:bg-app-elevated disabled:cursor-not-allowed disabled:opacity-50"
+            class="app-btn-secondary w-full"
             :disabled="isExporting || isRunning"
             @click="handleExportImage"
           >
@@ -503,7 +498,7 @@ const inputClass =
           />
         </label>
 
-        <div class="space-y-3 rounded-lg border border-app-border bg-app-accent/50 p-3">
+        <div class="app-card space-y-3 p-3">
           <h3 class="text-xs font-medium text-app-muted uppercase">{{ t('editorPanel.runModels') }}</h3>
 
           <label class="block space-y-1.5">
@@ -531,7 +526,7 @@ const inputClass =
 
         <button
           type="button"
-          class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-app-primary px-3 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          class="app-btn-primary w-full"
           :disabled="isRunning"
           @click="handleAgentRun"
         >
@@ -543,7 +538,7 @@ const inputClass =
         <p v-if="runStatusText" class="text-xs text-app-muted">{{ runStatusText }}</p>
         <p v-if="error" class="text-xs text-red-600 dark:text-red-400">{{ error }}</p>
 
-        <section v-if="analysis" class="space-y-3 rounded-lg border border-app-border bg-app-accent p-3">
+        <section v-if="analysis" class="app-card space-y-3 p-3">
           <div>
             <h3 class="text-xs font-medium text-app-muted uppercase">{{ t('editorPanel.analysisResult') }}</h3>
             <p class="mt-1 text-sm text-app-foreground">
@@ -558,7 +553,7 @@ const inputClass =
               <li
                 v-for="(item, index) in analysis.deficiencies"
                 :key="`${item.category}-${index}`"
-                class="rounded-md border border-app-border bg-app px-2.5 py-2"
+                class="rounded-md border border-app-border bg-app-surface px-2.5 py-2"
               >
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-xs font-medium text-app-foreground">

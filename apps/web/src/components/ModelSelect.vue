@@ -23,8 +23,7 @@ const emit = defineEmits<{
 const open = ref(false)
 const rootRef = ref<HTMLElement | null>(null)
 
-const triggerClass =
-  'flex w-full items-center gap-2 rounded-lg border border-app-border bg-app-input px-3 py-2 text-left text-sm text-app-foreground outline-none transition hover:border-app-muted focus-visible:border-app-muted focus-visible:ring-2 focus-visible:ring-app-accent disabled:cursor-not-allowed disabled:opacity-50'
+const triggerClass = 'app-select-trigger'
 
 const options = computed(() =>
   props.models.map((model) => ({
