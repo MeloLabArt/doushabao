@@ -1,6 +1,7 @@
 export type AppShortcutActions = {
   save: () => void
   undo: () => void
+  exportImage: () => void
   toggleSidebar: () => void
   toggleRightSidebar: () => void
 }
@@ -14,7 +15,12 @@ export function handleAppShortcut(event: ShortcutEvent, actions: AppShortcutActi
 
   const key = event.key.toLowerCase()
 
-  if (key === 's') {
+  if (key === 'e' && event.shiftKey && !event.altKey) {
+    actions.exportImage()
+    return true
+  }
+
+  if (key === 's' && !event.shiftKey && !event.altKey) {
     actions.save()
     return true
   }

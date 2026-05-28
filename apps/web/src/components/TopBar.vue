@@ -9,7 +9,8 @@ const editMenuItems = [{ id: 'undo', label: '撤回更改', shortcut: true }] as
 const fileMenuItems = [
   { id: 'new-workspace', label: '新建工作区', dividerAfter: true },
   { id: 'open', label: '打开' },
-  { id: 'save', label: '保存', shortcut: true },
+  { id: 'save', label: '保存', shortcut: 'save' },
+  { id: 'export-image', label: '导出图片', shortcut: 'export' },
 ] as const
 
 const viewMenuItems = [
@@ -23,6 +24,7 @@ type EditMenuAction = (typeof editMenuItems)[number]['id']
 
 const props = defineProps<{
   saveEnabled: boolean
+  exportEnabled: boolean
   undoEnabled: boolean
   sidebarVisible: boolean
   rightSidebarVisible: boolean
@@ -45,6 +47,7 @@ const viewMenuRef = ref<HTMLElement | null>(null)
 const editMenuRef = ref<HTMLElement | null>(null)
 const isMac = /Mac|iPhone|iPad/i.test(navigator.userAgent)
 const saveShortcutLabel = isMac ? '⌘S' : 'Ctrl+S'
+const exportShortcutLabel = isMac ? '⌘⇧E' : 'Ctrl+Shift+E'
 const undoShortcutLabel = isMac ? '⌘Z' : 'Ctrl+Z'
 const leftSidebarShortcutLabel = isMac ? '⌘B' : 'Ctrl+B'
 const rightSidebarShortcutLabel = isMac ? '⌘⇧B' : 'Ctrl+Shift+B'
@@ -54,6 +57,22 @@ const shortcutBadgeClass =
 
 function shortcutLabelForViewItem(shortcut: 'left' | 'right'): string {
   return shortcut === 'left' ? leftSidebarShortcutLabel : rightSidebarShortcutLabel
+}
+
+function shortcutLabelForFileItem(shortcut: 'save' | 'export'): string {
+  return shortcut === 'save' ? saveShortcutLabel : exportShortcutLabel
+}
+
+function isFileItemDisabled(id: FileMenuAction): boolean {
+  if (id === 'save') {
+    return !props.saveEnabled
+  }
+
+  if (id === 'export-image') {
+    return !props.exportEnabled
+  }
+
+  return false
 }
 
 function isViewItemChecked(id: ViewMenuAction): boolean {
@@ -85,6 +104,10 @@ function toggleEditMenu() {
 }
 
 function onFileAction(action: FileMenuAction) {
+  if (isFileItemDisabled(action)) {
+    return
+  }
+
   emit('fileAction', action)
   closeAllMenus()
 }
@@ -167,12 +190,12 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
                   type="button"
                   class="flex w-full items-center px-3 py-1.5 text-left text-sm transition-colors"
                   :class="
-                    item.id === 'save' && !props.saveEnabled
+                    isFileItemDisabled(item.id)
                       ? 'cursor-not-allowed text-app-subtle'
                       : 'text-app-foreground hover:bg-app-accent'
                   "
                   role="menuitem"
-                  :aria-disabled="item.id === 'save' && !props.saveEnabled"
+                  :aria-disabled="isFileItemDisabled(item.id)"
                   @click="onFileAction(item.id)"
                 >
                   <span>{{ item.label }}</span>
@@ -180,7 +203,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
                     v-if="'shortcut' in item && item.shortcut"
                     class="ml-auto pl-4 text-xs text-app-subtle"
                   >
-                    {{ saveShortcutLabel }}
+                    {{ shortcutLabelForFileItem(item.shortcut) }}
                   </span>
                 </button>
                 <div

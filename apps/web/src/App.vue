@@ -10,6 +10,7 @@ import TabBar from '@/components/TabBar.vue'
 import TopBar from '@/components/TopBar.vue'
 import { openNewWorkspace } from '@/lib/open-new-workspace'
 import { handleAppShortcut } from '@/lib/app-shortcuts'
+import { canExportWorkspace, exportWorkspaceImage } from '@/lib/export-workspace-image'
 import {
   addOpenWorkspace,
   addSettingsTab,
@@ -103,6 +104,15 @@ const canUndoActiveWorkspace = computed(() => {
   return canUndoWorkspaceImage(workspaceId)
 })
 
+const canExportActiveWorkspace = computed(() => {
+  const workspaceId = activeWorkspaceId.value
+  if (!workspaceId || isWorkspaceEditing(workspaceId)) {
+    return false
+  }
+
+  return canExportWorkspace(getWorkspace(workspaceId))
+})
+
 router.beforeEach((to, from) => {
   if (to.name === 'workspace' && typeof to.params.workspaceId === 'string') {
     addOpenWorkspace(to.params.workspaceId)
@@ -132,7 +142,7 @@ function toggleRightSidebar() {
   rightSidebarVisible.value = !rightSidebarVisible.value
 }
 
-function handleFileAction(action: 'new-workspace' | 'open' | 'save') {
+function handleFileAction(action: 'new-workspace' | 'open' | 'save' | 'export-image') {
   if (action === 'new-workspace') {
     openNewWorkspace(router)
     return
@@ -140,6 +150,11 @@ function handleFileAction(action: 'new-workspace' | 'open' | 'save') {
 
   if (action === 'save') {
     requestSaveActiveWorkspace()
+    return
+  }
+
+  if (action === 'export-image') {
+    void requestExportActiveWorkspace()
   }
 }
 
@@ -156,6 +171,24 @@ async function requestUndoActiveWorkspace(): Promise<void> {
   }
 
   await undoWorkspaceImageChange(workspaceId)
+}
+
+async function requestExportActiveWorkspace(): Promise<void> {
+  const workspaceId = activeWorkspaceId.value
+  if (!workspaceId || !canExportActiveWorkspace.value) {
+    return
+  }
+
+  const workspace = getWorkspace(workspaceId)
+  if (!workspace) {
+    return
+  }
+
+  try {
+    await exportWorkspaceImage(workspace)
+  } catch {
+    // 导出失败时静默处理；Editor 面板会显示具体错误
+  }
 }
 
 function requestSaveActiveWorkspace(): void {
@@ -212,6 +245,9 @@ function onDocumentKeyDown(event: KeyboardEvent): void {
       save: requestSaveActiveWorkspace,
       undo: () => {
         void requestUndoActiveWorkspace()
+      },
+      exportImage: () => {
+        void requestExportActiveWorkspace()
       },
       toggleSidebar,
       toggleRightSidebar,
@@ -305,6 +341,7 @@ async function handleDeleteProject(workspaceId: string): Promise<void> {
   <div class="flex min-h-dvh flex-col bg-app text-app-foreground">
     <TopBar
       :save-enabled="canSaveActiveWorkspace"
+      :export-enabled="canExportActiveWorkspace"
       :undo-enabled="canUndoActiveWorkspace"
       :sidebar-visible="sidebarVisible"
       :right-sidebar-visible="rightSidebarVisible"

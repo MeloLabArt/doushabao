@@ -7,6 +7,7 @@ describe('handleAppShortcut', () => {
     return {
       save: vi.fn(),
       undo: vi.fn(),
+      exportImage: vi.fn(),
       toggleSidebar: vi.fn(),
       toggleRightSidebar: vi.fn(),
     }
@@ -19,6 +20,15 @@ describe('handleAppShortcut', () => {
       handleAppShortcut({ key: 's', metaKey: true, ctrlKey: false, shiftKey: false, altKey: false }, actions),
     ).toBe(true)
     expect(actions.save).toHaveBeenCalledOnce()
+  })
+
+  it('calls exportImage on Cmd/Ctrl+Shift+E', () => {
+    const actions = createActions()
+
+    expect(
+      handleAppShortcut({ key: 'e', metaKey: true, ctrlKey: false, shiftKey: true, altKey: false }, actions),
+    ).toBe(true)
+    expect(actions.exportImage).toHaveBeenCalledOnce()
   })
 
   it('calls toggleSidebar on Cmd/Ctrl+B', () => {

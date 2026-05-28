@@ -86,7 +86,7 @@ describe('WorkspaceRightSidebar', () => {
     expect(wrapper.find('button:not([role="tab"])').attributes('disabled')).toBeUndefined()
   })
 
-  it('shows editor placeholder when editor mode is selected', async () => {
+  it('shows export action when editor mode is selected', async () => {
     createDraftWorkspace('workspace-1')
     stageWorkspaceWithImage('workspace-1')
 
@@ -100,7 +100,8 @@ describe('WorkspaceRightSidebar', () => {
     const editorTab = wrapper.findAll('button[role="tab"]').find((button) => button.text() === 'Editor')
     await editorTab!.trigger('click')
 
-    expect(wrapper.text()).toContain('Editor 模式即将推出')
+    expect(wrapper.text()).toContain('导出图片')
+    expect(wrapper.text()).toContain('将当前工作区图片导出到本地文件')
     expect(wrapper.find('textarea').exists()).toBe(false)
   })
 

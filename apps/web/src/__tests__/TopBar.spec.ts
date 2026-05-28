@@ -7,6 +7,7 @@ import TopBar from '../components/TopBar.vue'
 describe('TopBar save menu', () => {
   const defaultProps = {
     saveEnabled: false,
+    exportEnabled: false,
     undoEnabled: false,
     sidebarVisible: true,
     rightSidebarVisible: true,
@@ -66,6 +67,51 @@ describe('TopBar save menu', () => {
     expect(wrapper.emitted('fileAction')).toEqual([['save']])
   })
 
+  it('disables export when exportEnabled is false', async () => {
+    const wrapper = mount(TopBar, {
+      props: {
+        ...defaultProps,
+        exportEnabled: false,
+      },
+    })
+
+    await openFileMenu(wrapper)
+
+    const exportItem = wrapper.findAll('[role="menuitem"]').find((item) => item.text().includes('导出图片'))
+    expect(exportItem).toBeDefined()
+    expect(exportItem!.attributes('aria-disabled')).toBe('true')
+  })
+
+  it('emits export action when enabled', async () => {
+    const wrapper = mount(TopBar, {
+      props: {
+        ...defaultProps,
+        exportEnabled: true,
+      },
+    })
+
+    await openFileMenu(wrapper)
+
+    const exportItem = wrapper.findAll('[role="menuitem"]').find((item) => item.text().includes('导出图片'))
+    await exportItem!.trigger('click')
+
+    expect(wrapper.emitted('fileAction')).toEqual([['export-image']])
+  })
+
+  it('shows export shortcut in file menu', async () => {
+    const wrapper = mount(TopBar, {
+      props: {
+        ...defaultProps,
+        exportEnabled: true,
+      },
+    })
+
+    await openFileMenu(wrapper)
+
+    expect(wrapper.get('[role="menu"]').text()).toMatch(/导出图片/)
+    expect(wrapper.get('[role="menu"]').text()).toMatch(/⌘⇧E|Ctrl\+Shift\+E/)
+  })
+
   it('emits toggleSidebar when clicking sidebar button', async () => {
     const wrapper = mount(TopBar, {
       props: defaultProps,
@@ -90,6 +136,7 @@ describe('TopBar save menu', () => {
 describe('TopBar view menu', () => {
   const defaultProps = {
     saveEnabled: false,
+    exportEnabled: false,
     undoEnabled: false,
     sidebarVisible: true,
     rightSidebarVisible: true,

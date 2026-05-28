@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AgentImageAnalysis } from '@doushabao/agents'
-import { LoaderCircle, Sparkles } from '@lucide/vue'
+import { Download, LoaderCircle, Sparkles } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 
 import {
@@ -9,6 +9,7 @@ import {
   IMAGE_TYPE_LABELS,
 } from '@/lib/agent-labels'
 import type { EditMode } from '@/lib/edit-mode'
+import { exportWorkspaceImage } from '@/lib/export-workspace-image'
 import { runWorkspaceAgent } from '@/lib/run-workspace-agent'
 import { getWorkspace, openWorkspaces, setWorkspaceEditing, applyWorkspaceGeneratedImage, workspaceImageRevision } from '@/lib/workspace-session'
 
@@ -22,6 +23,8 @@ const isRunning = ref(false)
 const runStep = ref<'analysis' | 'edit' | null>(null)
 const error = ref('')
 const analysis = ref<AgentImageAnalysis | null>(null)
+const isExporting = ref(false)
+const exportError = ref('')
 
 const modeOptions: { value: EditMode; label: string }[] = [
   { value: 'agent', label: 'Agent' },
@@ -64,6 +67,8 @@ function resetAgentState() {
   analysis.value = null
   isRunning.value = false
   runStep.value = null
+  isExporting.value = false
+  exportError.value = ''
 }
 
 watch(
@@ -82,6 +87,25 @@ watch(
     runStep.value = null
   },
 )
+
+async function handleExportImage() {
+  const currentWorkspace = workspace.value
+
+  if (!currentWorkspace || isExporting.value) {
+    return
+  }
+
+  isExporting.value = true
+  exportError.value = ''
+
+  try {
+    await exportWorkspaceImage(currentWorkspace)
+  } catch (err) {
+    exportError.value = err instanceof Error ? err.message : '导出失败'
+  } finally {
+    isExporting.value = false
+  }
+}
 
 async function handleAgentRun() {
   const currentWorkspace = workspace.value
@@ -163,8 +187,23 @@ const inputClass =
         请先上传图片
       </p>
 
-      <div v-else-if="editMode === 'editor'" class="px-1 py-6 text-center text-xs text-app-subtle">
-        Editor 模式即将推出
+      <div v-else-if="editMode === 'editor'" class="flex flex-col gap-3">
+        <p class="text-xs leading-relaxed text-app-muted">
+          将当前工作区图片导出到本地文件。
+        </p>
+
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-app-border bg-app-accent px-3 py-2 text-sm font-medium text-app-foreground transition hover:bg-app-elevated disabled:cursor-not-allowed disabled:opacity-50"
+          :disabled="isExporting"
+          @click="handleExportImage"
+        >
+          <LoaderCircle v-if="isExporting" :size="15" :stroke-width="1.75" class="animate-spin" />
+          <Download v-else :size="15" :stroke-width="1.75" />
+          {{ isExporting ? '导出中…' : '导出图片' }}
+        </button>
+
+        <p v-if="exportError" class="text-xs text-red-600 dark:text-red-400">{{ exportError }}</p>
       </div>
 
       <div v-else class="flex min-h-0 flex-1 flex-col gap-3">
