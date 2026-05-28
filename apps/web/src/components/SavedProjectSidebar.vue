@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { ImageIcon, Trash2 } from '@lucide/vue'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
+  getDisplayWorkspaceTitle,
   loadSavedProjectsFromLocalStorage,
   savedWorkspacesRevision,
   WORKSPACES_STORAGE_KEY,
 } from '@/lib/workspace-storage'
 import type { Workspace } from '@/types/workspace'
+
+const { t, locale } = useI18n()
 
 defineProps<{
   activeWorkspaceId: string
@@ -43,7 +47,7 @@ onUnmounted(() => {
 })
 
 function formatUpdatedAt(timestamp: number): string {
-  return new Date(timestamp).toLocaleString('zh-CN', {
+  return new Date(timestamp).toLocaleString(locale.value, {
     month: 'numeric',
     day: 'numeric',
     hour: '2-digit',
@@ -68,15 +72,15 @@ function confirmDelete(workspaceId: string): void {
 <template>
   <aside
     class="flex w-56 shrink-0 flex-col border-r border-app-border bg-app"
-    aria-label="已保存项目"
+    :aria-label="t('sidebar.savedProjects')"
   >
     <div class="border-b border-app-border px-3 py-2.5">
-      <h2 class="text-xs font-medium tracking-wide text-app-muted uppercase">项目</h2>
+      <h2 class="text-xs font-medium tracking-wide text-app-muted uppercase">{{ t('sidebar.projects') }}</h2>
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto p-2">
       <p v-if="savedProjects.length === 0" class="px-2 py-6 text-center text-xs text-app-subtle">
-        暂无已保存项目
+        {{ t('sidebar.noSavedProjects') }}
       </p>
 
       <ul v-else class="space-y-1">
@@ -103,7 +107,7 @@ function confirmDelete(workspaceId: string): void {
             </div>
 
             <div class="min-w-0 flex-1">
-              <p class="truncate text-sm leading-snug">{{ project.title }}</p>
+              <p class="truncate text-sm leading-snug">{{ getDisplayWorkspaceTitle(project.title) }}</p>
               <p class="mt-0.5 text-xs text-app-subtle">{{ formatUpdatedAt(project.updatedAt) }}</p>
             </div>
           </button>
@@ -111,7 +115,7 @@ function confirmDelete(workspaceId: string): void {
           <button
             type="button"
             class="absolute top-2 right-2 inline-flex size-7 items-center justify-center rounded-md text-app-subtle transition-colors hover:bg-app hover:text-red-600 dark:hover:text-red-400"
-            :aria-label="`删除项目 ${project.title}`"
+            :aria-label="t('sidebar.deleteProject', { title: getDisplayWorkspaceTitle(project.title) })"
             @click.stop="requestDelete(project.id)"
           >
             <Trash2 :size="14" :stroke-width="1.75" />
@@ -121,21 +125,23 @@ function confirmDelete(workspaceId: string): void {
             v-if="pendingDeleteId === project.id"
             class="absolute inset-0 z-10 flex flex-col justify-center gap-2 rounded-lg border border-app-border bg-app-elevated/95 p-2 shadow-sm backdrop-blur-sm"
           >
-            <p class="px-1 text-xs text-app-foreground">删除「{{ project.title }}」？</p>
+            <p class="px-1 text-xs text-app-foreground">
+              {{ t('sidebar.confirmDelete', { title: getDisplayWorkspaceTitle(project.title) }) }}
+            </p>
             <div class="flex gap-2">
               <button
                 type="button"
                 class="flex-1 rounded-md border border-app-border px-2 py-1 text-xs text-app-muted transition hover:bg-app-accent"
                 @click.stop="cancelDelete"
               >
-                取消
+                {{ t('common.cancel') }}
               </button>
               <button
                 type="button"
                 class="flex-1 rounded-md bg-red-600 px-2 py-1 text-xs text-white transition hover:opacity-90"
                 @click.stop="confirmDelete(project.id)"
               >
-                删除
+                {{ t('common.delete') }}
               </button>
             </div>
           </div>

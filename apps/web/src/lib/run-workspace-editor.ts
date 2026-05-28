@@ -1,6 +1,8 @@
 import { generateImage, readImageDimensions } from '@doushabao/core'
 import { getEditorSystemPrompt } from '@doushabao/agents'
 
+import { translate } from '@/i18n'
+
 import { validateRunConfig } from '@/lib/app-settings'
 import { buildEditorPrompt, buildEditorReferencePrompt } from '@/lib/build-editor-prompt'
 import { loadAppSettings } from '@/lib/config-storage'
@@ -16,7 +18,7 @@ export async function runWorkspaceEditor(
   modelSelection?: ModelSelection,
 ): Promise<string> {
   if (marks.length === 0) {
-    throw new Error('请先在图片上圈选至少一个区域')
+    throw new Error(translate('errors.markAreaFirst'))
   }
 
   const settings = loadAppSettings()
@@ -25,7 +27,7 @@ export async function runWorkspaceEditor(
   const hydrated = await hydrateWorkspaceImage(workspace)
 
   if (!hydrated.sourceImage) {
-    throw new Error('请先上传图片')
+    throw new Error(translate('errors.uploadImageFirst'))
   }
 
   const dimensions = await readImageDimensions(hydrated.sourceImage)
@@ -49,7 +51,7 @@ export async function runWorkspaceEditor(
   const nextImage = result.images[0]
 
   if (!nextImage) {
-    throw new Error('修图模型未返回图片')
+    throw new Error(translate('errors.editModelNoImage'))
   }
 
   return nextImage

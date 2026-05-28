@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { X } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 import type { WorkspaceTabItem } from '@/types/workspace'
+
+const { t } = useI18n()
 
 defineProps<{
   tabs: WorkspaceTabItem[]
@@ -40,8 +43,8 @@ const emit = defineEmits<{
         <span
           v-if="tab.isDirty"
           class="shrink-0 text-app-subtle"
-          aria-label="有未保存的更改"
-          title="有未保存的更改"
+          :aria-label="t('tab.unsavedChanges')"
+          :title="t('tab.unsavedChanges')"
         >
           •
         </span>
@@ -49,7 +52,7 @@ const emit = defineEmits<{
       <button
         type="button"
         class="inline-flex size-5 shrink-0 items-center justify-center rounded text-app-subtle transition-colors hover:bg-app-accent hover:text-app-foreground"
-        aria-label="关闭标签页"
+        :aria-label="t('tab.closeTab')"
         @click.stop="emit('close', tab.id)"
       >
         <X :size="12" :stroke-width="2" />

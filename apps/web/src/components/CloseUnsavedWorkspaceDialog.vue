@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 defineProps<{
   open: boolean
   workspaceTitle: string
@@ -9,6 +11,8 @@ const emit = defineEmits<{
   discard: []
   cancel: []
 }>()
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -25,10 +29,10 @@ const emit = defineEmits<{
         class="w-full max-w-sm rounded-xl border border-app-border bg-app-elevated p-5 shadow-xl shadow-black/10"
       >
         <h2 id="close-unsaved-workspace-title" class="text-base font-semibold text-app-foreground">
-          关闭工作区
+          {{ t('closeDialog.title') }}
         </h2>
         <p class="mt-2 text-sm text-app-muted">
-          「{{ workspaceTitle }}」有未保存的更改，关闭后将丢失。
+          {{ t('closeDialog.message', { title: workspaceTitle }) }}
         </p>
 
         <div class="mt-5 flex justify-end gap-2">
@@ -37,21 +41,21 @@ const emit = defineEmits<{
             class="rounded-lg px-3 py-2 text-sm text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
             @click="emit('cancel')"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             type="button"
             class="rounded-lg px-3 py-2 text-sm text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
             @click="emit('discard')"
           >
-            不保存
+            {{ t('closeDialog.discard') }}
           </button>
           <button
             type="button"
             class="rounded-lg bg-app-primary px-4 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90"
             @click="emit('save')"
           >
-            保存
+            {{ t('common.save') }}
           </button>
         </div>
       </div>

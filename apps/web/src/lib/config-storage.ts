@@ -5,6 +5,7 @@ import {
   resolveRunConfig,
   validateAndResolveDefaults,
 } from '@/lib/app-settings'
+import { translate } from '@/i18n'
 import { DEFAULT_OPENROUTER_HOST } from '@/lib/model-providers'
 import type { AppSettings, ModelEntry } from '@/types/app-settings'
 
@@ -47,7 +48,7 @@ function migrateLegacyConfig(parsed: LegacyFlatConfig): AppSettings {
       id,
       providerId: 'openrouter',
       modelId: analysisModelId.trim(),
-      label: '分析模型',
+      label: translate('migration.analysisModel'),
       roles: ['analysis'],
     })
     settings.defaultAnalysisModelId = id
@@ -59,7 +60,7 @@ function migrateLegacyConfig(parsed: LegacyFlatConfig): AppSettings {
       id,
       providerId: 'openrouter',
       modelId: editModelId.trim(),
-      label: '修图模型',
+      label: translate('migration.editModel'),
       roles: ['edit'],
     })
     settings.defaultEditModelId = id

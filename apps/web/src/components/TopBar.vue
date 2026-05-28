@@ -1,26 +1,29 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
 import { Check, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose, Settings } from '@lucide/vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-const navMenuItems = ['帮助'] as const
+const { t } = useI18n()
 
-const editMenuItems = [{ id: 'undo', label: '撤回更改', shortcut: true }] as const
+const editMenuItems = computed(() => [{ id: 'undo' as const, label: t('menu.undo'), shortcut: true }])
 
-const fileMenuItems = [
-  { id: 'new-workspace', label: '新建工作区', dividerAfter: true },
-  { id: 'open', label: '打开' },
-  { id: 'save', label: '保存', shortcut: 'save' },
-  { id: 'export-image', label: '导出图片', shortcut: 'export' },
-] as const
+const fileMenuItems = computed(() => [
+  { id: 'new-workspace' as const, label: t('menu.newWorkspace'), dividerAfter: true },
+  { id: 'open' as const, label: t('common.open') },
+  { id: 'save' as const, label: t('menu.save'), shortcut: 'save' as const },
+  { id: 'export-image' as const, label: t('menu.exportImage'), shortcut: 'export' as const },
+])
 
-const viewMenuItems = [
-  { id: 'toggle-sidebar', label: '项目栏', shortcut: 'left' },
-  { id: 'toggle-right-sidebar', label: '编辑面板', shortcut: 'right' },
-] as const
+const viewMenuItems = computed(() => [
+  { id: 'toggle-sidebar' as const, label: t('menu.projectSidebar'), shortcut: 'left' as const },
+  { id: 'toggle-right-sidebar' as const, label: t('menu.editorPanel'), shortcut: 'right' as const },
+])
 
-type FileMenuAction = (typeof fileMenuItems)[number]['id']
-type ViewMenuAction = (typeof viewMenuItems)[number]['id']
-type EditMenuAction = (typeof editMenuItems)[number]['id']
+const navMenuItems = computed(() => [t('common.help')])
+
+type FileMenuAction = (typeof fileMenuItems.value)[number]['id']
+type ViewMenuAction = (typeof viewMenuItems.value)[number]['id']
+type EditMenuAction = (typeof editMenuItems.value)[number]['id']
 
 const props = defineProps<{
   saveEnabled: boolean
@@ -34,7 +37,7 @@ const emit = defineEmits<{
   settingsClick: []
   toggleSidebar: []
   toggleRightSidebar: []
-  menuClick: [menu: (typeof navMenuItems)[number]]
+  menuClick: [menu: string]
   fileAction: [action: FileMenuAction]
   editAction: [action: EditMenuAction]
 }>()
@@ -156,7 +159,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
     class="relative z-50 flex h-10 shrink-0 items-center justify-between border-b border-app-border bg-app/95 px-3 backdrop-blur-sm"
   >
     <nav class="flex min-w-0 items-center gap-3">
-      <span class="shrink-0 text-sm font-semibold tracking-tight text-app-foreground">豆沙包</span>
+      <span class="shrink-0 text-sm font-semibold tracking-tight text-app-foreground">{{ t('app.name') }}</span>
 
       <div class="flex items-center gap-0.5">
         <div ref="fileMenuRef" class="relative">
@@ -172,7 +175,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
             :aria-expanded="fileMenuOpen"
             @click.stop="toggleFileMenu"
           >
-            文件
+            {{ t('menu.file') }}
           </button>
 
           <div
@@ -229,7 +232,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
             :aria-expanded="viewMenuOpen"
             @click.stop="toggleViewMenu"
           >
-            视图
+            {{ t('menu.view') }}
           </button>
 
           <div
@@ -280,7 +283,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
             :aria-expanded="editMenuOpen"
             @click.stop="toggleEditMenu"
           >
-            编辑
+            {{ t('menu.edit') }}
           </button>
 
           <div
@@ -335,7 +338,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
       <button
         type="button"
         class="inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
-        :aria-label="props.sidebarVisible ? '隐藏侧边栏' : '显示侧边栏'"
+        :aria-label="props.sidebarVisible ? t('menu.hideSidebar') : t('menu.showSidebar')"
         :aria-pressed="props.sidebarVisible"
         @click="emit('toggleSidebar')"
       >
@@ -347,7 +350,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
       <button
         type="button"
         class="inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
-        :aria-label="props.rightSidebarVisible ? '隐藏编辑面板' : '显示编辑面板'"
+        :aria-label="props.rightSidebarVisible ? t('menu.hideEditorPanel') : t('menu.showEditorPanel')"
         :aria-pressed="props.rightSidebarVisible"
         @click="emit('toggleRightSidebar')"
       >
@@ -359,7 +362,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
       <button
         type="button"
         class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
-        aria-label="设置"
+        :aria-label="t('menu.settings')"
         @click="emit('settingsClick')"
       >
         <Settings :size="16" :stroke-width="1.75" />

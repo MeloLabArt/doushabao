@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { LoaderCircle } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 defineOptions({
@@ -35,6 +36,7 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
+const { t } = useI18n()
 const hydratedSourceImage = ref<string | null>(null)
 const isLoadingImage = ref(false)
 const replaceInputRef = ref<HTMLInputElement | null>(null)
@@ -169,7 +171,7 @@ defineExpose({
 <template>
   <section v-if="workspaceRecord" class="flex min-h-0 flex-1 flex-col bg-app-elevated">
     <p v-if="isLoadingImage" class="flex flex-1 items-center justify-center text-sm text-app-muted">
-      正在加载图片…
+      {{ t('workspace.loadingImage') }}
     </p>
     <div
       v-else-if="!hasImage"
@@ -192,14 +194,14 @@ defineExpose({
           :disabled="isEditing"
           @click="openReplacePicker"
         >
-          更换图片
+          {{ t('workspace.replaceImage') }}
         </button>
       </div>
       <div class="relative min-h-0 flex-1">
         <WorkspaceImageViewport
           :key="displaySourceImage"
           :src="displaySourceImage"
-          alt="工作区图片"
+          :alt="t('workspace.image')"
           class="h-full"
           :annotation-mode="annotationMode"
           :marks="editorMarks"
@@ -211,7 +213,7 @@ defineExpose({
           aria-live="polite"
         >
           <LoaderCircle :size="24" :stroke-width="1.75" class="animate-spin text-app-muted" />
-          <p class="text-sm font-medium text-app-foreground">正在编辑</p>
+          <p class="text-sm font-medium text-app-foreground">{{ t('workspace.editing') }}</p>
         </div>
       </div>
     </div>

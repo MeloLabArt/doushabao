@@ -1,10 +1,12 @@
 import type { EditorMark } from '@/types/editor-mark'
 
+import { translate } from '@/i18n'
+
 function loadImage(source: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('无法加载图片'))
+    image.onerror = () => reject(new Error(translate('errors.loadImageFailed')))
     image.src = source
   })
 }
@@ -21,7 +23,7 @@ export async function renderAnnotatedImage(
   const context = canvas.getContext('2d')
 
   if (!context) {
-    throw new Error('无法创建画布')
+    throw new Error(translate('errors.createCanvasFailed'))
   }
 
   context.drawImage(image, 0, 0)

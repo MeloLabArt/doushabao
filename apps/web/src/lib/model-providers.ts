@@ -1,5 +1,7 @@
 import type { ModelProvider, ProviderKind } from '@/types/app-settings'
 
+import { translate } from '@/i18n'
+
 export const PROVIDER_KINDS: ProviderKind[] = ['openrouter', 'gemini', 'openai-compatible']
 
 export const DEFAULT_OPENROUTER_HOST = 'https://openrouter.ai/api/v1'
@@ -54,7 +56,14 @@ export function isProviderKind(value: string): value is ProviderKind {
 }
 
 export function getProviderDefinition(kind: ProviderKind): ProviderDefinition {
-  return PROVIDER_DEFINITIONS[kind]
+  const base = PROVIDER_DEFINITIONS[kind]
+  const providerKey = kind === 'openai-compatible' ? 'openaiCompatible' : kind
+
+  return {
+    ...base,
+    name: translate(`providers.${providerKey}.name`),
+    hostHint: translate(`providers.${providerKey}.hostHint`),
+  }
 }
 
 export function getProviderLabel(kind: ProviderKind): string {

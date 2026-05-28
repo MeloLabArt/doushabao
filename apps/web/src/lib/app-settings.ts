@@ -1,5 +1,7 @@
 import { InitConfig, type Config } from '@doushabao/core'
 
+import { translate } from '@/i18n'
+
 import {
   createDefaultProviders,
   getProviderDefinition,
@@ -82,7 +84,7 @@ export function listModelsByRole(settings: AppSettings, role: ModelRole): ModelE
 }
 
 export function formatModelLabel(settings: AppSettings, model: ModelEntry): string {
-  const modelLabel = model.label.trim() || model.modelId.trim() || '未命名模型'
+  const modelLabel = model.label.trim() || model.modelId.trim() || translate('common.unnamedModel')
 
   return `${getProviderLabel(model.providerId)} · ${modelLabel}`
 }
@@ -148,7 +150,7 @@ export async function validateRunConfig(
   const config = resolveRunConfig(settings, selection)
 
   if (!config) {
-    throw new Error('请先在设置中配置默认模型，或在操作面板选择模型')
+    throw new Error(translate('errors.configureModelsFirst'))
   }
 
   return InitConfig(config)
@@ -156,34 +158,34 @@ export async function validateRunConfig(
 
 export function validateAppSettings(settings: AppSettings): string | null {
   if (settings.providers.length !== 3) {
-    return '提供商配置不完整'
+    return translate('errors.providersIncomplete')
   }
 
   for (const provider of settings.providers) {
     if (!isProviderKind(provider.id)) {
-      return '存在无效的提供商类型'
+      return translate('errors.invalidProvider')
     }
 
     if (!provider.host.trim()) {
-      return `请为「${getProviderLabel(provider.id)}」配置 API Host`
+      return translate('errors.providerHostRequired', { provider: getProviderLabel(provider.id) })
     }
   }
 
   if (settings.models.length === 0) {
-    return '请至少添加一个模型'
+    return translate('errors.addModelRequired')
   }
 
   for (const model of settings.models) {
     if (!model.modelId.trim() || !model.label.trim()) {
-      return '模型名称与 Model ID 不能为空'
+      return translate('errors.modelFieldsRequired')
     }
 
     if (model.roles.length === 0) {
-      return '每个模型至少选择一种用途（分析或修图）'
+      return translate('errors.modelRoleRequired')
     }
 
     if (!getProvider(settings, model.providerId)) {
-      return '存在未关联提供商的模型，请检查配置'
+      return translate('errors.orphanModel')
     }
   }
 
@@ -191,37 +193,37 @@ export function validateAppSettings(settings: AppSettings): string | null {
   const editModels = listModelsByRole(settings, 'edit')
 
   if (analysisModels.length === 0) {
-    return '请至少添加一个可用于分析的模型'
+    return translate('errors.analysisModelRequired')
   }
 
   if (editModels.length === 0) {
-    return '请至少添加一个可用于修图的模型'
+    return translate('errors.editModelRequired')
   }
 
   if (!settings.defaultAnalysisModelId || !getModelEntry(settings, settings.defaultAnalysisModelId)) {
-    return '请选择默认分析模型'
+    return translate('errors.defaultAnalysisRequired')
   }
 
   if (!settings.defaultEditModelId || !getModelEntry(settings, settings.defaultEditModelId)) {
-    return '请选择默认修图模型'
+    return translate('errors.defaultEditRequired')
   }
 
   const defaultAnalysis = getModelEntry(settings, settings.defaultAnalysisModelId)
   const defaultEdit = getModelEntry(settings, settings.defaultEditModelId)
 
   if (!defaultAnalysis?.roles.includes('analysis')) {
-    return '默认分析模型须支持分析用途'
+    return translate('errors.defaultAnalysisRole')
   }
 
   if (!defaultEdit?.roles.includes('edit')) {
-    return '默认修图模型须支持修图用途'
+    return translate('errors.defaultEditRole')
   }
 
   const usedProviderIds = new Set(settings.models.map((model) => model.providerId))
 
   for (const provider of settings.providers) {
     if (usedProviderIds.has(provider.id) && !provider.key.trim()) {
-      return `请为「${getProviderLabel(provider.id)}」配置 API Key`
+      return translate('errors.providerKeyRequired', { provider: getProviderLabel(provider.id) })
     }
   }
 

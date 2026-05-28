@@ -1,5 +1,7 @@
 import { runAgent, type AgentRunProgress, type AgentRunResult } from '@doushabao/core'
 
+import { translate } from '@/i18n'
+
 import { validateRunConfig } from '@/lib/app-settings'
 import { loadAppSettings } from '@/lib/config-storage'
 import { hydrateWorkspaceImage } from '@/lib/workspace-storage'
@@ -20,7 +22,7 @@ export async function runWorkspaceAgent(
   const hydrated = await hydrateWorkspaceImage(workspace)
 
   if (!hydrated.sourceImage) {
-    throw new Error('请先上传图片')
+    throw new Error(translate('errors.uploadImageFirst'))
   }
 
   return runAgent(config, [{ content: prompt, image: hydrated.sourceImage }], [{ style: '' }], {

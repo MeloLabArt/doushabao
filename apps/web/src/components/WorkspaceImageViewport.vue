@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Maximize2 } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import type { EditorMark } from '@/types/editor-mark'
 
@@ -27,6 +28,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:marks': [marks: EditorMark[]]
 }>()
+
+const { t } = useI18n()
 
 const viewportRef = ref<HTMLDivElement | null>(null)
 const imageRef = ref<HTMLImageElement | null>(null)
@@ -565,8 +568,8 @@ defineExpose({
     <button
       type="button"
       class="absolute bottom-3 right-3 z-10 inline-flex size-8 cursor-pointer items-center justify-center rounded-md border border-app-border bg-app/90 text-app-muted shadow-sm backdrop-blur-sm transition hover:bg-app-elevated hover:text-app-foreground"
-      aria-label="适应画布"
-      title="适应画布"
+      :aria-label="t('workspace.fitCanvas')"
+      :title="t('workspace.fitCanvas')"
       @click="fitImageToViewport"
     >
       <Maximize2 :size="16" :stroke-width="1.75" />

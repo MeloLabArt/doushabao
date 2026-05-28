@@ -2,6 +2,8 @@ import type { Workspace } from '@/types/workspace'
 
 import { ref } from 'vue'
 
+import { translate } from '@/i18n'
+
 import {
   deleteWorkspaceImage,
   loadWorkspaceImage,
@@ -18,6 +20,14 @@ export const WORKSPACES_STORAGE_KEY = 'doushabao:workspaces'
 export const LAST_WORKSPACE_STORAGE_KEY = 'doushabao:last-workspace-id'
 
 export const DEFAULT_WORKSPACE_TITLE = '未命名'
+
+export function isDefaultWorkspaceTitle(title: string): boolean {
+  return title === DEFAULT_WORKSPACE_TITLE || title === 'Untitled' || title === '未命名'
+}
+
+export function getDisplayWorkspaceTitle(title: string): string {
+  return isDefaultWorkspaceTitle(title) ? translate('common.unnamed') : title
+}
 
 type WorkspaceMap = Record<string, Workspace>
 

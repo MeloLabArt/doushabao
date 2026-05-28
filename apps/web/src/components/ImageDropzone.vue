@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ImageUp } from '@lucide/vue'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { pickImageFile, readImageFileAsDataUrl } from '@/lib/read-image-file'
+
+const { t } = useI18n()
 
 const emit = defineEmits<{
   select: [dataUrl: string]
@@ -97,8 +100,8 @@ async function onInputChange(event: Event): Promise<void> {
     </div>
 
     <div class="text-center">
-      <p class="text-sm font-medium text-app-foreground">拖拽图片到此处</p>
-      <p class="mt-1 text-xs text-app-muted">或点击选择图片上传</p>
+      <p class="text-sm font-medium text-app-foreground">{{ t('dropzone.dragHere') }}</p>
+      <p class="mt-1 text-xs text-app-muted">{{ t('dropzone.orClick') }}</p>
     </div>
   </div>
 </template>

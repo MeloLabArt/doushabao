@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import RouteTransition from '@/components/RouteTransition.vue'
@@ -32,6 +33,7 @@ import {
 import { workspaceUndoRevision } from '@/lib/workspace-image-history'
 import {
   DEFAULT_WORKSPACE_TITLE,
+  getDisplayWorkspaceTitle,
   isPersistedWorkspace,
   isWorkspaceNameTaken,
 } from '@/lib/workspace-storage'
@@ -39,6 +41,7 @@ import type { Workspace } from '@/types/workspace'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const transitionDirection = ref<'forward' | 'back'>('forward')
 const saveDialogOpen = ref(false)
 const saveDialogInitialName = ref('')
@@ -54,7 +57,7 @@ const openImageInputRef = ref<HTMLInputElement | null>(null)
 const appTabs = computed(() =>
   openTabs.value.flatMap((id) => {
     if (isSettingsTab(id)) {
-      return [{ id, title: '设置', isDirty: false }]
+      return [{ id, title: t('common.settings'), isDirty: false }]
     }
 
     const workspace = getWorkspace(id)
@@ -65,7 +68,7 @@ const appTabs = computed(() =>
     return [
       {
         id,
-        title: workspace.title,
+        title: getDisplayWorkspaceTitle(workspace.title),
         isDirty: isWorkspaceDirty(id),
       },
     ]
@@ -128,7 +131,7 @@ const closeTargetWorkspaceTitle = computed(() => {
     return ''
   }
 
-  return getWorkspace(tabId)?.title ?? DEFAULT_WORKSPACE_TITLE
+  return getDisplayWorkspaceTitle(getWorkspace(tabId)?.title ?? DEFAULT_WORKSPACE_TITLE)
 })
 
 router.beforeEach((to, from) => {
@@ -255,7 +258,7 @@ async function saveWorkspaceDirectly(
       performCloseTab(pendingCloseTabId)
     }
   } catch (error) {
-    saveError.value = error instanceof Error ? error.message : '保存失败'
+    saveError.value = error instanceof Error ? error.message : t('errors.saveFailed')
   } finally {
     isSavingWorkspace.value = false
   }
@@ -283,12 +286,12 @@ function requestSaveActiveWorkspace(): void {
 async function confirmSaveWorkspace(name: string): Promise<void> {
   const workspace = saveTargetWorkspace.value
   if (!workspace) {
-    saveError.value = '找不到要保存的工作区，请关闭弹窗后重试'
+    saveError.value = t('errors.workspaceNotFound')
     return
   }
 
   if (isWorkspaceNameTaken(name, workspace.id)) {
-    saveError.value = '工作区名称已存在，请使用其他名称'
+    saveError.value = t('errors.workspaceNameTaken')
     return
   }
 
@@ -309,7 +312,7 @@ async function confirmSaveWorkspace(name: string): Promise<void> {
       performCloseTab(pendingCloseTabId)
     }
   } catch (error) {
-    saveError.value = error instanceof Error ? error.message : '保存失败'
+    saveError.value = error instanceof Error ? error.message : t('errors.saveFailed')
   } finally {
     isSavingWorkspace.value = false
   }

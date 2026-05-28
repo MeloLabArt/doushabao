@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 
 import App from '../App.vue'
+import * as readImageFile from '../lib/read-image-file'
 import { getWorkspace, isWorkspaceDirty } from '../lib/workspace-session'
 import { WORKSPACES_STORAGE_KEY } from '../lib/workspace-storage'
 
@@ -75,6 +76,10 @@ describe('App', () => {
   })
 
   it('creates a workspace with image when clicking 打开', async () => {
+    vi.spyOn(readImageFile, 'readImageFileAsDataUrl').mockResolvedValue(
+      'data:image/png;base64,aW1hZ2UtYnl0ZXM=',
+    )
+
     const router = createRouter({
       history: createWebHistory(),
       routes: [

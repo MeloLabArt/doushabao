@@ -14,6 +14,10 @@ import { runWorkspaceAgent } from '../lib/run-workspace-agent'
 
 const mockedRunWorkspaceAgent = vi.mocked(runWorkspaceAgent)
 
+function findActionButton(wrapper: ReturnType<typeof mount>, label: string) {
+  return wrapper.findAll('button').find((button) => button.text().includes(label))
+}
+
 function stageWorkspaceWithImage(workspaceId: string) {
   stageWorkspaceChanges({
     id: workspaceId,
@@ -85,7 +89,7 @@ describe('WorkspaceRightSidebar', () => {
     })
     await flushPromises()
 
-    expect(wrapper.find('button:not([role="tab"])').attributes('disabled')).toBeUndefined()
+    expect(findActionButton(wrapper, '开始 Agent')?.attributes('disabled')).toBeUndefined()
   })
 
   it('shows editor annotation panel when editor mode is selected', async () => {
@@ -138,7 +142,7 @@ describe('WorkspaceRightSidebar', () => {
     })
     await flushPromises()
 
-    await wrapper.find('button:not([role="tab"])').trigger('click')
+    await findActionButton(wrapper, '开始 Agent')!.trigger('click')
     await flushPromises()
 
     expect(mockedRunWorkspaceAgent).toHaveBeenCalled()

@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { ChevronDown, Plus, Trash2 } from '@lucide/vue'
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { createId, getProviderDefinition, listModelsByRole } from '@/lib/app-settings'
 import { loadAppSettings, saveAppSettings } from '@/lib/config-storage'
 import ModelSelect from '@/components/ModelSelect.vue'
+import { type AppLocale, setLocale, SUPPORTED_LOCALES } from '@/i18n'
+import { loadLocale } from '@/lib/locale-storage'
 import { PROVIDER_KINDS } from '@/lib/model-providers'
 import { type Theme, applyTheme, loadTheme, saveTheme } from '@/lib/theme-storage'
 import type { AppSettings, ModelEntry, ModelRole, ProviderKind } from '@/types/app-settings'
+
+const { t } = useI18n()
 
 const form = ref<AppSettings>({
   providers: [],
@@ -17,14 +22,22 @@ const form = ref<AppSettings>({
 })
 
 const theme = ref<Theme>('light')
+const locale = ref<AppLocale>(loadLocale())
 const saving = ref(false)
 const error = ref('')
 const saved = ref(false)
 
-const themeOptions: { value: Theme; label: string }[] = [
-  { value: 'light', label: '浅色' },
-  { value: 'dark', label: '深色' },
-]
+const themeOptions = computed(() => [
+  { value: 'light' as const, label: t('theme.light') },
+  { value: 'dark' as const, label: t('theme.dark') },
+])
+
+const localeOptions = computed(() =>
+  SUPPORTED_LOCALES.map((value) => ({
+    value,
+    label: t(`locale.${value}`),
+  })),
+)
 
 const analysisModels = computed(() => listModelsByRole(form.value, 'analysis'))
 const editModels = computed(() => listModelsByRole(form.value, 'edit'))
@@ -32,10 +45,10 @@ const editModels = computed(() => listModelsByRole(form.value, 'edit'))
 const inputClass =
   'w-full rounded-lg border border-app-border bg-app-input px-3 py-2 text-sm text-app-foreground outline-none transition placeholder:text-app-subtle focus:border-app-muted focus:ring-2 focus:ring-app-accent'
 
-const roleOptions: { value: ModelRole; label: string }[] = [
-  { value: 'analysis', label: '分析' },
-  { value: 'edit', label: '修图' },
-]
+const roleOptions = computed(() => [
+  { value: 'analysis' as const, label: t('roles.analysis') },
+  { value: 'edit' as const, label: t('roles.edit') },
+])
 
 const expandedProviders = reactive<Record<ProviderKind, boolean>>({
   openrouter: true,
@@ -67,12 +80,18 @@ onMounted(() => {
   form.value = loadAppSettings()
   syncProviderExpandedState(form.value)
   theme.value = loadTheme()
+  locale.value = loadLocale()
 })
 
 function setTheme(nextTheme: Theme) {
   theme.value = nextTheme
   saveTheme(nextTheme)
   applyTheme(nextTheme)
+}
+
+function setAppLocale(nextLocale: AppLocale) {
+  locale.value = nextLocale
+  setLocale(nextLocale)
 }
 
 function providerDef(kind: ProviderKind) {
@@ -96,18 +115,18 @@ function providerSummary(kind: ProviderKind): string {
   const hasKey = Boolean(form.value.providers.find((provider) => provider.id === kind)?.key.trim())
 
   if (modelCount > 0 && hasKey) {
-    return `${modelCount} 个模型 · 已配置 Key`
+    return t('settings.providerSummary.modelsWithKey', { count: modelCount })
   }
 
   if (modelCount > 0) {
-    return `${modelCount} 个模型`
+    return t('settings.providerSummary.models', { count: modelCount })
   }
 
   if (hasKey) {
-    return '已配置 Key'
+    return t('settings.providerSummary.keyConfigured')
   }
 
-  return '未配置'
+  return t('settings.providerSummary.notConfigured')
 }
 
 function removeModel(modelId: string) {
@@ -144,7 +163,7 @@ async function handleSubmit() {
     form.value = await saveAppSettings(form.value)
     saved.value = true
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '保存失败'
+    error.value = err instanceof Error ? err.message : t('settings.saveFailed')
   } finally {
     saving.value = false
   }
@@ -154,22 +173,52 @@ async function handleSubmit() {
 <template>
   <section class="mx-auto w-full max-w-2xl p-6">
     <div class="mb-6">
-      <h1 class="text-lg font-semibold text-app-foreground">设置</h1>
+      <h1 class="text-lg font-semibold text-app-foreground">{{ t('settings.title') }}</h1>
       <p class="mt-1 text-sm text-app-muted">
-        支持 OpenRouter、Gemini、OpenAI 兼容三种提供商；配置模型后可在工作区操作面板临时切换。
+        {{ t('settings.description') }}
       </p>
     </div>
 
     <section class="mb-8 space-y-3">
       <div>
-        <h2 class="text-sm font-medium text-app-foreground">外观</h2>
-        <p class="mt-1 text-xs text-app-subtle">选择界面配色方案。</p>
+        <h2 class="text-sm font-medium text-app-foreground">{{ t('locale.title') }}</h2>
+        <p class="mt-1 text-xs text-app-subtle">{{ t('locale.description') }}</p>
+      </div>
+
+      <div
+        class="inline-flex flex-wrap gap-1 rounded-lg border border-app-border bg-app-accent p-1"
+        role="radiogroup"
+        :aria-label="t('locale.title')"
+      >
+        <button
+          v-for="option in localeOptions"
+          :key="option.value"
+          type="button"
+          role="radio"
+          class="rounded-md px-4 py-1.5 text-sm transition-colors"
+          :class="
+            locale === option.value
+              ? 'bg-app-elevated text-app-foreground shadow-sm'
+              : 'text-app-muted hover:text-app-foreground'
+          "
+          :aria-checked="locale === option.value"
+          @click="setAppLocale(option.value)"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+    </section>
+
+    <section class="mb-8 space-y-3">
+      <div>
+        <h2 class="text-sm font-medium text-app-foreground">{{ t('theme.title') }}</h2>
+        <p class="mt-1 text-xs text-app-subtle">{{ t('theme.description') }}</p>
       </div>
 
       <div
         class="inline-flex rounded-lg border border-app-border bg-app-accent p-1"
         role="radiogroup"
-        aria-label="主题"
+        :aria-label="t('theme.label')"
       >
         <button
           v-for="option in themeOptions"
@@ -193,9 +242,9 @@ async function handleSubmit() {
     <form class="space-y-8" @submit.prevent="handleSubmit">
       <section class="space-y-4">
         <div>
-          <h2 class="text-sm font-medium text-app-foreground">模型提供商</h2>
+          <h2 class="text-sm font-medium text-app-foreground">{{ t('settings.providers') }}</h2>
           <p class="mt-1 text-xs text-app-subtle">
-            仅需为实际使用的提供商填写 API Key；未添加模型的提供商可留空。
+            {{ t('settings.providersHint') }}
           </p>
         </div>
 
@@ -229,7 +278,7 @@ async function handleSubmit() {
           <div v-show="isProviderExpanded(provider.id)" class="space-y-4 border-t border-app-border px-4 py-4">
           <div class="grid gap-4">
             <label class="block space-y-1.5">
-              <span class="text-xs font-medium text-app-muted">API Host</span>
+              <span class="text-xs font-medium text-app-muted">{{ t('settings.apiHost') }}</span>
               <input
                 v-model="provider.host"
                 type="url"
@@ -246,7 +295,7 @@ async function handleSubmit() {
             </label>
 
             <label class="block space-y-1.5">
-              <span class="text-xs font-medium text-app-muted">API Key</span>
+              <span class="text-xs font-medium text-app-muted">{{ t('settings.apiKey') }}</span>
               <input
                 v-model="provider.key"
                 type="password"
@@ -254,20 +303,20 @@ async function handleSubmit() {
                 :placeholder="providerDef(provider.id).keyPlaceholder"
                 :class="inputClass"
               />
-              <span class="text-xs text-app-subtle">保存在本地浏览器，不会上传到服务器。</span>
+              <span class="text-xs text-app-subtle">{{ t('settings.keyLocalHint') }}</span>
             </label>
           </div>
 
           <div class="space-y-3 border-t border-app-border pt-4">
             <div class="flex items-center justify-between gap-3">
-              <h4 class="text-xs font-medium text-app-muted uppercase">模型列表</h4>
+              <h4 class="text-xs font-medium text-app-muted uppercase">{{ t('settings.modelList') }}</h4>
               <button
                 type="button"
                 class="inline-flex items-center gap-1 rounded-md border border-app-border px-2 py-1 text-[11px] font-medium text-app-foreground transition hover:bg-app-elevated"
                 @click.stop="addModel(provider.id)"
               >
                 <Plus :size="12" :stroke-width="1.75" />
-                添加模型
+                {{ t('settings.addModel') }}
               </button>
             </div>
 
@@ -275,7 +324,7 @@ async function handleSubmit() {
               v-if="modelsForProvider(provider.id).length === 0"
               class="rounded-lg border border-dashed border-app-border px-3 py-3 text-center text-xs text-app-subtle"
             >
-              尚未添加模型
+              {{ t('settings.noModelsYet') }}
             </p>
 
             <div
@@ -284,11 +333,11 @@ async function handleSubmit() {
               class="space-y-3 rounded-lg border border-app-border bg-app px-3 py-3"
             >
               <div class="flex items-center justify-between gap-2">
-                <span class="text-xs font-medium text-app-foreground">模型</span>
+                <span class="text-xs font-medium text-app-foreground">{{ t('common.model') }}</span>
                 <button
                   type="button"
                   class="rounded p-1 text-app-muted transition hover:bg-app-accent hover:text-red-600"
-                  aria-label="删除模型"
+                  :aria-label="t('settings.deleteModel')"
                   @click="removeModel(model.id)"
                 >
                   <Trash2 :size="12" :stroke-width="1.75" />
@@ -296,12 +345,18 @@ async function handleSubmit() {
               </div>
 
               <label class="block space-y-1">
-                <span class="text-xs text-app-muted">显示名称</span>
-                <input v-model="model.label" type="text" required placeholder="Gemini 分析" :class="inputClass" />
+                <span class="text-xs text-app-muted">{{ t('settings.displayName') }}</span>
+                <input
+                  v-model="model.label"
+                  type="text"
+                  required
+                  :placeholder="t('settings.displayNamePlaceholder')"
+                  :class="inputClass"
+                />
               </label>
 
               <label class="block space-y-1">
-                <span class="text-xs text-app-muted">Model ID</span>
+                <span class="text-xs text-app-muted">{{ t('settings.modelId') }}</span>
                 <input
                   v-model="model.modelId"
                   type="text"
@@ -313,7 +368,7 @@ async function handleSubmit() {
               </label>
 
               <div class="space-y-1.5">
-                <span class="text-xs text-app-muted">用途</span>
+                <span class="text-xs text-app-muted">{{ t('settings.role') }}</span>
                 <div class="flex flex-wrap gap-2">
                   <label
                     v-for="roleOption in roleOptions"
@@ -335,7 +390,7 @@ async function handleSubmit() {
                   </label>
                 </div>
                 <p class="text-[11px] text-app-subtle">
-                  分析：理解图片并输出 JSON；修图：需支持图像输出。
+                  {{ t('settings.roleHint') }}
                 </p>
               </div>
             </div>
@@ -346,27 +401,27 @@ async function handleSubmit() {
 
       <section class="space-y-4 rounded-xl border border-app-border p-4">
         <div>
-          <h2 class="text-sm font-medium text-app-foreground">默认模型</h2>
-          <p class="mt-1 text-xs text-app-subtle">新建工作区或未手动选择时使用；操作面板可覆盖。</p>
+          <h2 class="text-sm font-medium text-app-foreground">{{ t('settings.defaultModels') }}</h2>
+          <p class="mt-1 text-xs text-app-subtle">{{ t('settings.defaultModelsHint') }}</p>
         </div>
 
         <label class="block space-y-1.5">
-          <span class="text-sm font-medium text-app-foreground">默认分析模型</span>
+          <span class="text-sm font-medium text-app-foreground">{{ t('settings.defaultAnalysisModel') }}</span>
           <ModelSelect
             v-model="form.defaultAnalysisModelId"
             :settings="form"
             :models="analysisModels"
-            placeholder="选择分析模型"
+            :placeholder="t('settings.selectAnalysisModel')"
           />
         </label>
 
         <label class="block space-y-1.5">
-          <span class="text-sm font-medium text-app-foreground">默认修图模型</span>
+          <span class="text-sm font-medium text-app-foreground">{{ t('settings.defaultEditModel') }}</span>
           <ModelSelect
             v-model="form.defaultEditModelId"
             :settings="form"
             :models="editModels"
-            placeholder="选择修图模型"
+            :placeholder="t('settings.selectEditModel')"
           />
         </label>
       </section>
@@ -377,10 +432,10 @@ async function handleSubmit() {
           :disabled="saving"
           class="rounded-lg bg-app-primary px-4 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {{ saving ? '保存中…' : '保存' }}
+          {{ saving ? t('common.saving') : t('common.save') }}
         </button>
 
-        <p v-if="saved" class="text-sm text-emerald-600 dark:text-emerald-400">已保存</p>
+        <p v-if="saved" class="text-sm text-emerald-600 dark:text-emerald-400">{{ t('common.saved') }}</p>
         <p v-else-if="error" class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>
       </div>
     </form>

@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Download, LoaderCircle, Sparkles, Trash2, Wand2 } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
-  DEFICIENCY_CATEGORY_LABELS,
-  DEFICIENCY_SEVERITY_LABELS,
-  IMAGE_TYPE_LABELS,
+  getDeficiencyCategoryLabel,
+  getDeficiencySeverityLabel,
+  getImageTypeLabel,
 } from '@/lib/agent-labels'
-import ModelSelect from '@/components/ModelSelect.vue'
 import { listModelsByRole } from '@/lib/app-settings'
+import ModelSelect from '@/components/ModelSelect.vue'
 import { loadAppSettings } from '@/lib/config-storage'
 import { exportWorkspaceImage } from '@/lib/export-workspace-image'
 import { runWorkspaceAgent } from '@/lib/run-workspace-agent'
@@ -48,6 +49,8 @@ import type { EditorMark } from '@/types/editor-mark'
 const props = defineProps<{
   activeWorkspaceId: string
 }>()
+
+const { t } = useI18n()
 
 const isExporting = ref(false)
 const exportError = ref('')
@@ -210,11 +213,11 @@ const selectedEditModelId = computed({
 
 const runStatusText = computed(() => {
   if (runStep.value === 'analysis') {
-    return '正在分析图片…'
+    return t('editorPanel.analyzing')
   }
 
   if (runStep.value === 'edit') {
-    return editMode.value === 'editor' ? '正在按标注修图…' : '正在修图…'
+    return editMode.value === 'editor' ? t('editorPanel.editingByMarks') : t('editorPanel.editing')
   }
 
   return ''
@@ -278,7 +281,7 @@ async function handleExportImage() {
   try {
     await exportWorkspaceImage(currentWorkspace)
   } catch (err) {
-    exportError.value = err instanceof Error ? err.message : '导出失败'
+    exportError.value = err instanceof Error ? err.message : t('errors.exportFailed')
   } finally {
     isExporting.value = false
   }
@@ -310,12 +313,12 @@ async function handleAgentRun() {
 
     const nextImage = result.images[0]
     if (!nextImage) {
-      throw new Error('修图模型未返回图片')
+      throw new Error(t('errors.editModelNoImage'))
     }
 
     await applyWorkspaceGeneratedImage(currentWorkspace, nextImage)
   } catch (err) {
-    setWorkspaceRunError(workspaceId, err instanceof Error ? err.message : 'Agent 执行失败')
+    setWorkspaceRunError(workspaceId, err instanceof Error ? err.message : t('errors.agentFailed'))
   } finally {
     setWorkspaceEditing(workspaceId, false)
     setWorkspaceRunStep(workspaceId, null)
@@ -347,7 +350,7 @@ async function handleEditorRun() {
     await applyWorkspaceGeneratedImage(currentWorkspace, nextImage)
     succeeded = true
   } catch (err) {
-    setWorkspaceRunError(workspaceId, err instanceof Error ? err.message : 'Editor 修图失败')
+    setWorkspaceRunError(workspaceId, err instanceof Error ? err.message : t('errors.editorFailed'))
   } finally {
     setWorkspaceEditing(workspaceId, false)
     setWorkspaceRunStep(workspaceId, null)
@@ -365,15 +368,15 @@ const inputClass =
 <template>
   <aside
     class="flex w-64 shrink-0 flex-col border-l border-app-border bg-app"
-    aria-label="编辑面板"
+    :aria-label="t('editorPanel.title')"
   >
     <div class="border-b border-app-border px-3 py-2.5">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-xs font-medium tracking-wide text-app-muted uppercase">编辑</h2>
+        <h2 class="text-xs font-medium tracking-wide text-app-muted uppercase">{{ t('editorPanel.title') }}</h2>
         <div
           class="inline-flex rounded-md border border-app-border bg-app-accent p-0.5"
           role="tablist"
-          aria-label="编辑模式"
+          :aria-label="t('editorPanel.modeLabel')"
         >
           <button
             v-for="option in modeOptions"
@@ -398,32 +401,32 @@ const inputClass =
 
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
       <p v-if="!activeWorkspaceId" class="px-1 py-6 text-center text-xs text-app-subtle">
-        打开或新建工作区以开始编辑
+        {{ t('editorPanel.noWorkspace') }}
       </p>
 
       <p v-else-if="!hasImage" class="px-1 py-6 text-center text-xs text-app-subtle">
-        请先上传图片
+        {{ t('editorPanel.uploadFirst') }}
       </p>
 
       <div v-else-if="editMode === 'editor'" class="flex flex-col gap-3">
         <p class="text-xs leading-relaxed text-app-muted">
-          在图片上拖拽画圈（带半径预览线）标注修改位置，按顺序自动编号；已有圈可拖拽移动。圈仅作位置指引，修图会对整张图生效。填写描述后提交，可与 Agent 模式随时切换。
+          {{ t('editorPanel.editorHint') }}
         </p>
 
         <section v-if="editorMarks.length" class="space-y-2">
-          <h3 class="text-xs font-medium text-app-muted uppercase">标注区域</h3>
+          <h3 class="text-xs font-medium text-app-muted uppercase">{{ t('editorPanel.annotationAreas') }}</h3>
           <div
             v-for="(mark, index) in editorMarks"
             :key="mark.id"
             class="rounded-lg border border-app-border bg-app-accent p-2.5"
           >
             <div class="mb-1.5 flex items-center justify-between gap-2">
-              <span class="text-xs font-medium text-app-foreground">{{ index + 1 }} 号圈</span>
+              <span class="text-xs font-medium text-app-foreground">{{ t('editorPanel.circleLabel', { number: index + 1 }) }}</span>
               <button
                 type="button"
                 class="rounded p-1 text-app-muted transition hover:bg-app-elevated hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                 :disabled="isRunning"
-                aria-label="删除标注"
+                :aria-label="t('editorPanel.deleteAnnotation')"
                 @click="removeMark(mark.id)"
               >
                 <Trash2 :size="13" :stroke-width="1.75" />
@@ -432,7 +435,7 @@ const inputClass =
             <textarea
               :value="mark.description"
               rows="2"
-              placeholder="描述此区域要如何修改"
+              :placeholder="t('editorPanel.markPlaceholder')"
               :class="inputClass"
               :disabled="isRunning"
               @input="updateMarkDescription(mark.id, ($event.target as HTMLTextAreaElement).value)"
@@ -441,17 +444,17 @@ const inputClass =
         </section>
 
         <p v-else class="rounded-lg border border-dashed border-app-border px-3 py-4 text-center text-xs text-app-subtle">
-          尚未圈选区域
+          {{ t('editorPanel.noAnnotations') }}
         </p>
 
         <label class="block space-y-1.5">
-          <span class="text-xs font-medium text-app-muted">修图模型</span>
+          <span class="text-xs font-medium text-app-muted">{{ t('editorPanel.editModel') }}</span>
           <ModelSelect
             v-model="selectedEditModelId"
             :settings="appSettings"
             :models="editModels"
             :disabled="isRunning"
-            placeholder="选择修图模型"
+            :placeholder="t('settings.selectEditModel')"
           />
         </label>
 
@@ -463,7 +466,7 @@ const inputClass =
         >
           <LoaderCircle v-if="isRunning" :size="15" :stroke-width="1.75" class="animate-spin" />
           <Wand2 v-else :size="15" :stroke-width="1.75" />
-          {{ isRunning ? '处理中…' : '开始修图' }}
+          {{ isRunning ? t('common.processing') : t('editorPanel.startEdit') }}
         </button>
 
         <p v-if="runStatusText" class="text-xs text-app-muted">{{ runStatusText }}</p>
@@ -478,7 +481,7 @@ const inputClass =
           >
             <LoaderCircle v-if="isExporting" :size="15" :stroke-width="1.75" class="animate-spin" />
             <Download v-else :size="15" :stroke-width="1.75" />
-            {{ isExporting ? '导出中…' : '导出图片' }}
+            {{ isExporting ? t('editorPanel.exporting') : t('editorPanel.exportImage') }}
           </button>
           <p v-if="exportError" class="mt-2 text-xs text-red-600 dark:text-red-400">{{ exportError }}</p>
         </div>
@@ -486,42 +489,42 @@ const inputClass =
 
       <div v-else class="flex min-h-0 flex-1 flex-col gap-3">
         <p class="text-xs leading-relaxed text-app-muted">
-          自动分析并修图；完成后可切换到 Editor 做局部标注精修。
+          {{ t('editorPanel.agentHint') }}
         </p>
 
         <label class="block space-y-1.5">
-          <span class="text-sm font-medium text-app-foreground">修图需求（可选）</span>
+          <span class="text-sm font-medium text-app-foreground">{{ t('editorPanel.editRequest') }}</span>
           <textarea
             v-model="agentPrompt"
             rows="6"
-            placeholder="描述你想对图片做的修改；留空则根据分析结果自动优化"
+            :placeholder="t('editorPanel.editRequestPlaceholder')"
             :class="inputClass"
             :disabled="isRunning"
           />
         </label>
 
         <div class="space-y-3 rounded-lg border border-app-border bg-app-accent/50 p-3">
-          <h3 class="text-xs font-medium text-app-muted uppercase">本次运行模型</h3>
+          <h3 class="text-xs font-medium text-app-muted uppercase">{{ t('editorPanel.runModels') }}</h3>
 
           <label class="block space-y-1.5">
-            <span class="text-xs text-app-muted">分析模型</span>
+            <span class="text-xs text-app-muted">{{ t('editorPanel.analysisModel') }}</span>
             <ModelSelect
               v-model="selectedAnalysisModelId"
               :settings="appSettings"
               :models="analysisModels"
               :disabled="isRunning"
-              placeholder="选择分析模型"
+              :placeholder="t('settings.selectAnalysisModel')"
             />
           </label>
 
           <label class="block space-y-1.5">
-            <span class="text-xs text-app-muted">修图模型</span>
+            <span class="text-xs text-app-muted">{{ t('editorPanel.editModel') }}</span>
             <ModelSelect
               v-model="selectedEditModelId"
               :settings="appSettings"
               :models="editModels"
               :disabled="isRunning"
-              placeholder="选择修图模型"
+              :placeholder="t('settings.selectEditModel')"
             />
           </label>
         </div>
@@ -534,7 +537,7 @@ const inputClass =
         >
           <LoaderCircle v-if="isRunning" :size="15" :stroke-width="1.75" class="animate-spin" />
           <Sparkles v-else :size="15" :stroke-width="1.75" />
-          {{ isRunning ? '处理中…' : '开始 Agent' }}
+          {{ isRunning ? t('common.processing') : t('editorPanel.startAgent') }}
         </button>
 
         <p v-if="runStatusText" class="text-xs text-app-muted">{{ runStatusText }}</p>
@@ -542,15 +545,15 @@ const inputClass =
 
         <section v-if="analysis" class="space-y-3 rounded-lg border border-app-border bg-app-accent p-3">
           <div>
-            <h3 class="text-xs font-medium text-app-muted uppercase">分析结果</h3>
+            <h3 class="text-xs font-medium text-app-muted uppercase">{{ t('editorPanel.analysisResult') }}</h3>
             <p class="mt-1 text-sm text-app-foreground">
-              {{ IMAGE_TYPE_LABELS[analysis.imageType] }}
+              {{ getImageTypeLabel(analysis.imageType) }}
             </p>
             <p class="mt-1 text-xs text-app-subtle">{{ analysis.imageTypeReason }}</p>
           </div>
 
           <div>
-            <h4 class="text-xs font-medium text-app-muted">主要问题</h4>
+            <h4 class="text-xs font-medium text-app-muted">{{ t('editorPanel.mainIssues') }}</h4>
             <ul class="mt-2 space-y-2">
               <li
                 v-for="(item, index) in analysis.deficiencies"
@@ -559,10 +562,10 @@ const inputClass =
               >
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-xs font-medium text-app-foreground">
-                    {{ DEFICIENCY_CATEGORY_LABELS[item.category] }}
+                    {{ getDeficiencyCategoryLabel(item.category) }}
                   </span>
                   <span class="text-[11px] text-app-subtle">
-                    {{ DEFICIENCY_SEVERITY_LABELS[item.severity] }}
+                    {{ getDeficiencySeverityLabel(item.severity) }}
                   </span>
                 </div>
                 <p class="mt-1 text-xs text-app-muted">{{ item.description }}</p>
@@ -573,7 +576,7 @@ const inputClass =
           <p class="text-xs leading-relaxed text-app-muted">{{ analysis.summary }}</p>
 
           <div>
-            <h4 class="text-xs font-medium text-app-muted">修图指令</h4>
+            <h4 class="text-xs font-medium text-app-muted">{{ t('editorPanel.editInstructions') }}</h4>
             <p class="mt-1 text-xs leading-relaxed text-app-foreground">{{ analysis.editPrompt }}</p>
           </div>
         </section>

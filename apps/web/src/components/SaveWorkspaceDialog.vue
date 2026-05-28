@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   open: boolean
@@ -48,7 +51,7 @@ function handleSubmit(): void {
 
   const trimmed = readName()
   if (!trimmed) {
-    validationError.value = '请输入工作区名称'
+    validationError.value = t('saveDialog.nameRequired')
     inputRef.value?.focus()
     return
   }
@@ -80,19 +83,19 @@ function onBackdropClick(): void {
         class="w-full max-w-sm rounded-xl border border-app-border bg-app-elevated p-5 shadow-xl shadow-black/10"
       >
         <h2 id="save-workspace-title" class="text-base font-semibold text-app-foreground">
-          保存工作区
+          {{ t('saveDialog.title') }}
         </h2>
-        <p class="mt-1 text-sm text-app-muted">为当前工作区输入一个名称。</p>
+        <p class="mt-1 text-sm text-app-muted">{{ t('saveDialog.description') }}</p>
 
         <div class="mt-4 space-y-4">
           <label class="block space-y-1.5">
-            <span class="text-sm font-medium text-app-foreground">名称</span>
+            <span class="text-sm font-medium text-app-foreground">{{ t('common.name') }}</span>
             <input
               ref="inputRef"
               v-model="name"
               type="text"
               autocomplete="off"
-              placeholder="例如：产品海报"
+              :placeholder="t('saveDialog.namePlaceholder')"
               :class="inputClass"
               @input="validationError = ''"
               @keydown.enter.prevent="handleSubmit"
@@ -111,7 +114,7 @@ function onBackdropClick(): void {
               class="rounded-lg px-3 py-2 text-sm text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
               @click="handleCancel"
             >
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button
               type="button"
@@ -119,7 +122,7 @@ function onBackdropClick(): void {
               :disabled="props.saving"
               @click="handleSubmit"
             >
-              {{ props.saving ? '保存中…' : '保存' }}
+              {{ props.saving ? t('common.saving') : t('common.save') }}
             </button>
           </div>
         </div>
