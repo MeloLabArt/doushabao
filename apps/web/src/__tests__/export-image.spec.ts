@@ -45,7 +45,7 @@ describe('export-image', () => {
       href: '',
       download: '',
       rel: '',
-    } as HTMLAnchorElement
+    } as unknown as HTMLAnchorElement
     const appendChild = vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node)
     const removeChild = vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node)
     vi.spyOn(document, 'createElement').mockReturnValue(link)

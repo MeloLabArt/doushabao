@@ -192,6 +192,7 @@ describe('TopBar view menu', () => {
 describe('TopBar edit menu', () => {
   const defaultProps = {
     saveEnabled: false,
+    exportEnabled: false,
     undoEnabled: true,
     sidebarVisible: true,
     rightSidebarVisible: true,

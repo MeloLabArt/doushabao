@@ -1,3 +1,4 @@
+import type { AgentRunResult } from '@doushabao/core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { flushPromises, mount } from '@vue/test-utils'
@@ -48,7 +49,7 @@ describe('WorkspaceRightSidebar tab switching', () => {
     stageWorkspaceWithImage('workspace-1')
     stageWorkspaceWithImage('workspace-2')
 
-    let resolveAgent: ((value: unknown) => void) | undefined
+    let resolveAgent: ((value: AgentRunResult) => void) | undefined
     mockedRunWorkspaceAgent.mockImplementation(
       () =>
         new Promise((resolve) => {

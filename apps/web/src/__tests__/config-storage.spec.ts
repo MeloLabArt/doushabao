@@ -7,8 +7,9 @@ import {
 } from '../lib/config-storage'
 import { resolveRunConfig } from '../lib/app-settings'
 import { DEFAULT_GEMINI_HOST, DEFAULT_OPENROUTER_HOST } from '../lib/model-providers'
+import type { AppSettings } from '../types/app-settings'
 
-function sampleSettings() {
+function sampleSettings(): AppSettings {
   return {
     providers: [
       {
@@ -33,14 +34,14 @@ function sampleSettings() {
         providerId: 'openrouter' as const,
         modelId: 'google/gemini-2.5-flash-preview',
         label: '分析',
-        roles: ['analysis'],
+        roles: ['analysis' as const],
       },
       {
         id: 'edit-1',
         providerId: 'openrouter' as const,
         modelId: 'google/gemini-2.5-flash-image-preview',
         label: '修图',
-        roles: ['edit'],
+        roles: ['edit' as const],
       },
     ],
     defaultAnalysisModelId: 'analysis-1',
