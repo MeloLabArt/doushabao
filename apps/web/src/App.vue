@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { syncDocumentTitle } from '@/lib/sync-document-title'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -29,6 +30,7 @@ import {
   removeSavedProject,
   SETTINGS_TAB_ID,
   undoWorkspaceImageChange,
+  workspaceContentRevision,
 } from '@/lib/workspace-session'
 import { workspaceUndoRevision } from '@/lib/workspace-image-history'
 import {
@@ -41,7 +43,7 @@ import type { Workspace } from '@/types/workspace'
 
 const router = useRouter()
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const transitionDirection = ref<'forward' | 'back'>('forward')
 const saveDialogOpen = ref(false)
 const saveDialogInitialName = ref('')
@@ -94,6 +96,33 @@ const activeWorkspaceId = computed(() => {
   }
 
   return ''
+})
+
+syncDocumentTitle({
+  appName: () => {
+    locale.value
+    return t('app.name')
+  },
+  pageTitle: () => {
+    locale.value
+    workspaceContentRevision.value
+    route.name
+    route.params.workspaceId
+
+    if (route.name === 'settings') {
+      return t('common.settings')
+    }
+
+    if (route.name === 'workspace') {
+      const workspaceId = activeWorkspaceId.value
+      const workspace = workspaceId ? getWorkspace(workspaceId) : null
+      if (workspace) {
+        return getDisplayWorkspaceTitle(workspace.title)
+      }
+    }
+
+    return t('home.mainWorkspace')
+  },
 })
 
 const canSaveActiveWorkspace = computed(() => {

@@ -3,6 +3,8 @@ import { Check, PanelLeft, PanelLeftClose, PanelRight, PanelRightClose, Settings
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { logoUrl } from '@/lib/app-brand'
+
 const { t } = useI18n()
 
 const editMenuItems = computed(() => [{ id: 'undo' as const, label: t('menu.undo'), shortcut: true }])
@@ -158,7 +160,16 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
     class="relative z-50 flex h-10 shrink-0 items-center justify-between border-b border-app-border bg-app/95 px-3 backdrop-blur-sm"
   >
     <nav class="flex min-w-0 items-center gap-3">
-      <span class="shrink-0 text-sm font-semibold tracking-tight text-app-foreground">{{ t('app.name') }}</span>
+      <div class="flex shrink-0 items-center gap-2">
+        <img
+          :src="logoUrl"
+          :alt="t('app.name')"
+          class="size-6 shrink-0 object-contain"
+          width="24"
+          height="24"
+        />
+        <span class="text-sm font-semibold tracking-tight text-app-foreground">{{ t('app.name') }}</span>
+      </div>
 
       <div class="flex items-center gap-0.5">
         <div ref="fileMenuRef" class="relative">
