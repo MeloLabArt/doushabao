@@ -24,6 +24,8 @@ export default defineConfig({
       },
       devOptions: {
         enabled: true,
+        // dev-dist 里只有 SW 自身文件，precache glob 会空匹配并报警
+        suppressWarnings: true,
       },
     }),
   ],
