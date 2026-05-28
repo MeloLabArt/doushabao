@@ -1,13 +1,13 @@
 export const AGENT_ANALYSIS_JSON_SCHEMA = `{
   "imageType": "landscape | portrait_with_people | pure_portrait",
-  "imageTypeReason": "判断依据，简要说明为何归类为该类型",
+  "imageTypeReason": "Brief rationale for the chosen image type",
   "deficiencies": [
     {
       "category": "color | clarity | composition | portrait_detail | lighting | other",
-      "description": "具体不足描述",
+      "description": "Specific deficiency description",
       "severity": "low | medium | high"
     }
   ],
-  "summary": "对图片整体质量与主要问题的简要总结",
-  "editPrompt": "给修图模型的具体修改指令：先声明在原图底片上局部调整禁止重绘且输出宽高像素与原图完全一致，再写保留项，最后至多1项轻微摄影后期调整，结尾重申尺寸不得改变，中文"
+  "summary": "Brief overall quality summary and main issues",
+  "editPrompt": "Concrete edit instructions for the edit model: first declare local edit on original plate with no redraw and identical output pixel dimensions, then preservation list, then at most one mild photo-post adjustment, end by restating dimensions must not change—in English"
 }`;

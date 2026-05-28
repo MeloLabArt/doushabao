@@ -28,15 +28,15 @@ export type AgentRunResult = {
 
 function buildEditPrompt(analysis: AgentImageAnalysis, dimensions: ImageDimensions): string {
   return [
-    "【任务】对消息中附带的输入图做编辑并输出编辑后的同一张图，不是根据文字另画一张相似的新图。",
-    "输入图是待修底片：人物身份、五官、发型、衣着、物体种类与数量、构图、透视、背景结构必须与输入图一致。",
-    "禁止整图重绘、禁止换脸、禁止替换场景或季节；仅做指令范围内的极轻微摄影后期。",
+    "[Task] Edit the attached input image and return the edited same image—not a new similar image painted from text alone.",
+    "The input is the plate: person identity, features, hair, clothing, object types and counts, composition, perspective, and background structure must match the input.",
+    "No full redraw, no face swap, no scene or season replacement; only minimal photo post within the instructions.",
     "",
-    "修图指令：",
+    "Edit instructions:",
     analysis.editPrompt.trim(),
     "",
-    `【尺寸硬性要求】输出图片必须为宽 ${dimensions.width} × 高 ${dimensions.height} 像素（与原图完全相同）。禁止裁切、加边、拉伸、压缩或任何导致宽高比/分辨率变化的处理。`,
-    "若指令与保真冲突，以保真原图为准并尽量少改。",
+    `[Dimension requirement] Output must be exactly ${dimensions.width} × ${dimensions.height} pixels (identical to the original). No crop, border, stretch, compress, or any aspect ratio or resolution change.`,
+    "If instructions conflict with fidelity, prioritize fidelity and change as little as possible.",
   ].join("\n");
 }
 

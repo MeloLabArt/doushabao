@@ -73,11 +73,11 @@ describe('runWorkspaceEditor', () => {
       [
         expect.objectContaining({
           image: 'data:image/png;base64,abc',
-          content: expect.stringContaining('1号圈：去掉杂物'),
+          content: expect.stringContaining('Circle 1: 去掉杂物'),
         }),
         expect.objectContaining({
           image: 'data:image/png;base64,annotated',
-          content: expect.stringContaining('标注参考图'),
+          content: expect.stringContaining('Annotation reference'),
         }),
       ],
       [{ style: '' }, { style: '' }],

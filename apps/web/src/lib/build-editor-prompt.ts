@@ -7,28 +7,28 @@ export type ImageDimensions = {
 
 export function buildEditorPrompt(marks: EditorMark[], dimensions: ImageDimensions): string {
   const lines = marks.map((mark, index) => {
-    const description = mark.description.trim() || '按视觉常识优化此区域'
-    return `${index + 1}号圈：${description}`
+    const description = mark.description.trim() || 'Optimize this region using visual best practices'
+    return `Circle ${index + 1}: ${description}`
   })
 
   return [
-    '【任务】对消息中附带的第一张输入原图做**全图修图**，输出与输入同尺寸的完整画幅成图。',
-    '编号圈仅用于标明修改意图对应的位置，**不是**只修圈内区域、不是局部裁切、不是输出圈选截图。',
-    '成图不得包含任何红色圆圈或编号标注；可在落实各点修改的同时协调全图色彩与曝光，使整体自然。',
-    '输入原图是待修底片：人物身份、五官、发型、衣着、构图、透视、背景结构须与原图一致（指令允许的改动除外）。',
-    '禁止整图重绘、禁止换脸、禁止替换场景或季节。',
+    '[Task] Edit the first attached input original with **full-frame retouching**; output the complete frame at the same dimensions as the input.',
+    'Numbered circles only mark where each edit intent applies—they are **not** circle-only edits, local crops, or cropped exports.',
+    'The result must not contain any red circles or number annotations; you may balance global color and exposure while applying each point so the whole image stays natural.',
+    'The input original is the plate: person identity, features, hair, clothing, composition, perspective, and background structure must match the original (except where instructions allow change).',
+    'No full redraw, no face swap, no scene or season replacement.',
     '',
-    '区域修改指令（位置见标注参考图或下方编号）：',
+    'Region edit instructions (locations on annotation reference or numbered below):',
     ...lines,
     '',
-    `【尺寸硬性要求】输出图片必须为宽 ${dimensions.width} × 高 ${dimensions.height} 像素（与原图完全相同）。禁止裁切、加边、拉伸、压缩或任何导致宽高比/分辨率变化的处理。`,
-    '若指令与保真冲突，以保真原图为准并尽量少改。',
+    `[Dimension requirement] Output must be exactly ${dimensions.width} × ${dimensions.height} pixels (identical to the original). No crop, border, stretch, compress, or any change to aspect ratio or resolution.`,
+    'If instructions conflict with fidelity, prioritize fidelity and change as little as possible.',
   ].join('\n')
 }
 
 export function buildEditorReferencePrompt(): string {
   return [
-    '【标注参考图】与上一张输入原图为同一张图，仅叠加了红色编号圆圈示意位置。',
-    '请据此理解「N号圈」各指哪里；最终成图必须基于无标注的输入原图输出完整全图，且不得保留任何标注标记。',
+    '[Annotation reference] Same image as the previous input original, with red numbered circles overlaid for position only.',
+    'Use this to locate each "circle N"; the final image must be based on the unannotated input original as a full frame with no annotation marks retained.',
   ].join('')
 }

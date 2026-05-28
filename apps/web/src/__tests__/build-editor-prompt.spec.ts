@@ -24,9 +24,9 @@ describe('buildEditorPrompt', () => {
   it('builds numbered region instructions', () => {
     const prompt = buildEditorPrompt(marks, { width: 1200, height: 900 })
 
-    expect(prompt).toContain('1号圈：去掉背景路人')
-    expect(prompt).toContain('2号圈：按视觉常识优化此区域')
-    expect(prompt).toContain('全图修图')
-    expect(prompt).toContain('宽 1200 × 高 900 像素')
+    expect(prompt).toContain('Circle 1: 去掉背景路人')
+    expect(prompt).toContain('Circle 2: Optimize this region using visual best practices')
+    expect(prompt).toContain('full-frame retouching')
+    expect(prompt).toContain('1200 × 900 pixels')
   })
 })
