@@ -202,6 +202,7 @@ export async function persistWorkspace(workspace: Workspace): Promise<void> {
   draftWorkspaces.delete(workspace.id)
   markWorkspaceClean(workspace.id)
   openTabIds.value = [...openTabIds.value]
+  workspaceContentRevision.value += 1
 }
 
 export function discardWorkspace(id: string): void {

@@ -121,5 +121,9 @@ describe('save workspace', () => {
 
     expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toContain('测试工作区')
     expect(isWorkspaceDirty(workspaceId)).toBe(false)
+
+    const image = wrapper.find('img[alt="工作区图片"]')
+    expect(image.exists()).toBe(true)
+    expect(image.attributes('src')).toBe('data:image/png;base64,abc')
   })
 })
