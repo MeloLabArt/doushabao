@@ -16,7 +16,8 @@ dist
 dist-ssr
 coverage
 *.local
-
+sw.js
+workbox-*.js
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
