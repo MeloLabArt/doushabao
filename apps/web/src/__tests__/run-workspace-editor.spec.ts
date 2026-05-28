@@ -3,16 +3,40 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDraftWorkspace, getWorkspace, stageWorkspaceChanges } from '../lib/workspace-session'
 import { runWorkspaceEditor } from '../lib/run-workspace-editor'
 
-vi.mock('@doushabao/core', () => ({
-  generateImage: vi.fn(),
-  readImageDimensions: vi.fn(async () => ({ width: 1200, height: 900 })),
-}))
+vi.mock('@doushabao/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@doushabao/core')>()
+  return {
+    ...actual,
+    generateImage: vi.fn(),
+    readImageDimensions: vi.fn(async () => ({ width: 1200, height: 900 })),
+  }
+})
 
 vi.mock('../lib/config-storage', () => ({
-  loadConfig: vi.fn(() => ({
-    key: 'test-key',
-    editModel: 'edit-model',
-    analysisModel: 'analysis-model',
+  loadAppSettings: vi.fn(() => ({
+    providers: [
+      { id: 'openrouter', host: 'https://openrouter.ai/api/v1', key: 'test-key' },
+      { id: 'gemini', host: 'https://generativelanguage.googleapis.com/v1beta/openai/', key: '' },
+      { id: 'openai-compatible', host: 'https://api.openai.com/v1', key: '' },
+    ],
+    models: [
+      {
+        id: 'analysis-1',
+        providerId: 'openrouter',
+        modelId: 'analysis-model',
+        label: '分析',
+        roles: ['analysis'],
+      },
+      {
+        id: 'edit-1',
+        providerId: 'openrouter',
+        modelId: 'edit-model',
+        label: '修图',
+        roles: ['edit'],
+      },
+    ],
+    defaultAnalysisModelId: 'analysis-1',
+    defaultEditModelId: 'edit-1',
   })),
 }))
 
@@ -69,7 +93,9 @@ describe('runWorkspaceEditor', () => {
 
     expect(result).toBe('data:image/png;base64,result')
     expect(mockedGenerateImage).toHaveBeenCalledWith(
-      expect.objectContaining({ editModel: 'edit-model' }),
+      expect.objectContaining({
+        edit: expect.objectContaining({ model: 'edit-model' }),
+      }),
       [
         expect.objectContaining({
           image: 'data:image/png;base64,abc',

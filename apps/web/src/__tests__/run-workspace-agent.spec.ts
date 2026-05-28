@@ -3,16 +3,39 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runWorkspaceAgent } from '../lib/run-workspace-agent'
 import type { Workspace } from '@/types/workspace'
 
-vi.mock('@doushabao/core', () => ({
-  runAgent: vi.fn(),
-}))
+vi.mock('@doushabao/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@doushabao/core')>()
+  return {
+    ...actual,
+    runAgent: vi.fn(),
+  }
+})
 
 vi.mock('../lib/config-storage', () => ({
-  loadConfig: vi.fn(() => ({
-    host: 'https://openrouter.ai/api/v1',
-    key: 'test-key',
-    analysisModel: 'analysis-model',
-    editModel: 'edit-model',
+  loadAppSettings: vi.fn(() => ({
+    providers: [
+      { id: 'openrouter', host: 'https://openrouter.ai/api/v1', key: 'test-key' },
+      { id: 'gemini', host: 'https://generativelanguage.googleapis.com/v1beta/openai/', key: '' },
+      { id: 'openai-compatible', host: 'https://api.openai.com/v1', key: '' },
+    ],
+    models: [
+      {
+        id: 'analysis-1',
+        providerId: 'openrouter',
+        modelId: 'analysis-model',
+        label: '分析',
+        roles: ['analysis'],
+      },
+      {
+        id: 'edit-1',
+        providerId: 'openrouter',
+        modelId: 'edit-model',
+        label: '修图',
+        roles: ['edit'],
+      },
+    ],
+    defaultAnalysisModelId: 'analysis-1',
+    defaultEditModelId: 'edit-1',
   })),
 }))
 
@@ -49,16 +72,23 @@ describe('run-workspace-agent', () => {
       },
       analysisRaw: '{}',
       images: ['data:image/png;base64,result'],
+      sourceDimensions: { width: 100, height: 100 },
     })
 
     await runWorkspaceAgent(workspace, '提高清晰度')
 
     expect(mockedRunAgent).toHaveBeenCalledWith(
       {
-        host: 'https://openrouter.ai/api/v1',
-        key: 'test-key',
-        analysisModel: 'analysis-model',
-        editModel: 'edit-model',
+        analysis: {
+          host: 'https://openrouter.ai/api/v1',
+          key: 'test-key',
+          model: 'analysis-model',
+        },
+        edit: {
+          host: 'https://openrouter.ai/api/v1',
+          key: 'test-key',
+          model: 'edit-model',
+        },
       },
       [{ content: '提高清晰度', image: 'data:image/png;base64,abc' }],
       [{ style: '' }],
@@ -66,27 +96,17 @@ describe('run-workspace-agent', () => {
     )
   })
 
-  it('rejects when config is incomplete', async () => {
-    const { loadConfig } = await import('../lib/config-storage')
-    vi.mocked(loadConfig).mockReturnValueOnce({
-      host: 'https://openrouter.ai/api/v1',
-      key: '',
-      analysisModel: 'analysis-model',
-      editModel: 'edit-model',
+  it('rejects when settings cannot resolve config', async () => {
+    const { loadAppSettings } = await import('../lib/config-storage')
+    vi.mocked(loadAppSettings).mockReturnValueOnce({
+      providers: [],
+      models: [],
+      defaultAnalysisModelId: '',
+      defaultEditModelId: '',
     })
 
-    await expect(runWorkspaceAgent(workspace, '')).rejects.toThrow('请先在设置中配置 API Key')
-  })
-
-  it('rejects when analysis and edit models are the same', async () => {
-    const { loadConfig } = await import('../lib/config-storage')
-    vi.mocked(loadConfig).mockReturnValueOnce({
-      host: 'https://openrouter.ai/api/v1',
-      key: 'test-key',
-      analysisModel: 'same-model',
-      editModel: 'same-model',
-    })
-
-    await expect(runWorkspaceAgent(workspace, '')).rejects.toThrow('分析模型与修图模型不能相同')
+    await expect(runWorkspaceAgent(workspace, '')).rejects.toThrow(
+      '请先在设置中配置默认模型',
+    )
   })
 })

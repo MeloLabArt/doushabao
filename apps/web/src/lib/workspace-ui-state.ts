@@ -12,6 +12,9 @@ type WorkspaceUiState = {
   editorMarks: EditorMark[]
   editorMarksRevision: number
   agentPrompt: string
+  /** null = use settings default */
+  selectedAnalysisModelId: string | null
+  selectedEditModelId: string | null
   runStep: WorkspaceRunStep | null
   runError: string
   analysis: AgentImageAnalysis | null
@@ -27,6 +30,8 @@ function createDefaultState(): WorkspaceUiState {
     editorMarks: [],
     editorMarksRevision: 0,
     agentPrompt: '',
+    selectedAnalysisModelId: null,
+    selectedEditModelId: null,
     runStep: null,
     runError: '',
     analysis: null,
@@ -105,6 +110,51 @@ export function setWorkspaceAgentPrompt(workspaceId: string, prompt: string): vo
 
   state.agentPrompt = prompt
   bumpRevision()
+}
+
+export function getWorkspaceSelectedAnalysisModelId(workspaceId: string): string | null {
+  return getState(workspaceId).selectedAnalysisModelId
+}
+
+export function setWorkspaceSelectedAnalysisModelId(
+  workspaceId: string,
+  modelId: string | null,
+): void {
+  const state = getState(workspaceId)
+
+  if (state.selectedAnalysisModelId === modelId) {
+    return
+  }
+
+  state.selectedAnalysisModelId = modelId
+  bumpRevision()
+}
+
+export function getWorkspaceSelectedEditModelId(workspaceId: string): string | null {
+  return getState(workspaceId).selectedEditModelId
+}
+
+export function setWorkspaceSelectedEditModelId(workspaceId: string, modelId: string | null): void {
+  const state = getState(workspaceId)
+
+  if (state.selectedEditModelId === modelId) {
+    return
+  }
+
+  state.selectedEditModelId = modelId
+  bumpRevision()
+}
+
+export function getWorkspaceModelSelection(workspaceId: string): {
+  analysisModelId: string | null
+  editModelId: string | null
+} {
+  const state = getState(workspaceId)
+
+  return {
+    analysisModelId: state.selectedAnalysisModelId,
+    editModelId: state.selectedEditModelId,
+  }
 }
 
 export function isWorkspaceRunning(workspaceId: string): boolean {

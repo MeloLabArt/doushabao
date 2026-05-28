@@ -55,7 +55,10 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-export type OpenRouterCredentials = Pick<Config, "host" | "key">;
+export type OpenRouterCredentials = {
+  host: string;
+  key: string;
+};
 
 function normalizeHost(host: string): string {
   return host.replace(/\/+$/, "");

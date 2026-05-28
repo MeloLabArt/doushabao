@@ -7,6 +7,9 @@ import {
   DEFICIENCY_SEVERITY_LABELS,
   IMAGE_TYPE_LABELS,
 } from '@/lib/agent-labels'
+import ModelSelect from '@/components/ModelSelect.vue'
+import { listModelsByRole } from '@/lib/app-settings'
+import { loadAppSettings } from '@/lib/config-storage'
 import { exportWorkspaceImage } from '@/lib/export-workspace-image'
 import { runWorkspaceAgent } from '@/lib/run-workspace-agent'
 import { runWorkspaceEditor } from '@/lib/run-workspace-editor'
@@ -23,8 +26,11 @@ import {
   getWorkspaceAnalysis,
   getWorkspaceEditMode,
   getWorkspaceEditorMarks,
+  getWorkspaceModelSelection,
   getWorkspaceRunError,
   getWorkspaceRunStep,
+  getWorkspaceSelectedAnalysisModelId,
+  getWorkspaceSelectedEditModelId,
   isWorkspaceRunning,
   setWorkspaceAgentPrompt,
   setWorkspaceAnalysis,
@@ -32,6 +38,8 @@ import {
   setWorkspaceEditorMarks,
   setWorkspaceRunError,
   setWorkspaceRunStep,
+  setWorkspaceSelectedAnalysisModelId,
+  setWorkspaceSelectedEditModelId,
   workspaceUiRevision,
   clearWorkspaceEditorMarks,
 } from '@/lib/workspace-ui-state'
@@ -142,6 +150,64 @@ const analysis = computed(() => {
   return getWorkspaceAnalysis(props.activeWorkspaceId)
 })
 
+const appSettings = computed(() => {
+  workspaceUiRevision.value
+  return loadAppSettings()
+})
+
+const analysisModels = computed(() => listModelsByRole(appSettings.value, 'analysis'))
+const editModels = computed(() => listModelsByRole(appSettings.value, 'edit'))
+
+const selectedAnalysisModelId = computed({
+  get() {
+    workspaceUiRevision.value
+
+    if (!props.activeWorkspaceId) {
+      return ''
+    }
+
+    return (
+      getWorkspaceSelectedAnalysisModelId(props.activeWorkspaceId)
+      ?? appSettings.value.defaultAnalysisModelId
+    )
+  },
+  set(value: string) {
+    if (!props.activeWorkspaceId) {
+      return
+    }
+
+    setWorkspaceSelectedAnalysisModelId(
+      props.activeWorkspaceId,
+      value === appSettings.value.defaultAnalysisModelId ? null : value,
+    )
+  },
+})
+
+const selectedEditModelId = computed({
+  get() {
+    workspaceUiRevision.value
+
+    if (!props.activeWorkspaceId) {
+      return ''
+    }
+
+    return (
+      getWorkspaceSelectedEditModelId(props.activeWorkspaceId)
+      ?? appSettings.value.defaultEditModelId
+    )
+  },
+  set(value: string) {
+    if (!props.activeWorkspaceId) {
+      return
+    }
+
+    setWorkspaceSelectedEditModelId(
+      props.activeWorkspaceId,
+      value === appSettings.value.defaultEditModelId ? null : value,
+    )
+  },
+})
+
 const runStatusText = computed(() => {
   if (runStep.value === 'analysis') {
     return '正在分析图片…'
@@ -234,8 +300,11 @@ async function handleAgentRun() {
   setWorkspaceEditing(workspaceId, true)
 
   try {
-    const result = await runWorkspaceAgent(currentWorkspace, prompt, (step) => {
-      setWorkspaceRunStep(workspaceId, step)
+    const result = await runWorkspaceAgent(currentWorkspace, prompt, {
+      onProgress: (step) => {
+        setWorkspaceRunStep(workspaceId, step)
+      },
+      modelSelection: getWorkspaceModelSelection(workspaceId),
     })
     setWorkspaceAnalysis(workspaceId, result.analysis)
 
@@ -270,7 +339,11 @@ async function handleEditorRun() {
   let succeeded = false
 
   try {
-    const nextImage = await runWorkspaceEditor(currentWorkspace, marks)
+    const nextImage = await runWorkspaceEditor(
+      currentWorkspace,
+      marks,
+      getWorkspaceModelSelection(workspaceId),
+    )
     await applyWorkspaceGeneratedImage(currentWorkspace, nextImage)
     succeeded = true
   } catch (err) {
@@ -371,6 +444,17 @@ const inputClass =
           尚未圈选区域
         </p>
 
+        <label class="block space-y-1.5">
+          <span class="text-xs font-medium text-app-muted">修图模型</span>
+          <ModelSelect
+            v-model="selectedEditModelId"
+            :settings="appSettings"
+            :models="editModels"
+            :disabled="isRunning"
+            placeholder="选择修图模型"
+          />
+        </label>
+
         <button
           type="button"
           class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-app-primary px-3 py-2 text-sm font-medium text-app-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
@@ -415,6 +499,32 @@ const inputClass =
             :disabled="isRunning"
           />
         </label>
+
+        <div class="space-y-3 rounded-lg border border-app-border bg-app-accent/50 p-3">
+          <h3 class="text-xs font-medium text-app-muted uppercase">本次运行模型</h3>
+
+          <label class="block space-y-1.5">
+            <span class="text-xs text-app-muted">分析模型</span>
+            <ModelSelect
+              v-model="selectedAnalysisModelId"
+              :settings="appSettings"
+              :models="analysisModels"
+              :disabled="isRunning"
+              placeholder="选择分析模型"
+            />
+          </label>
+
+          <label class="block space-y-1.5">
+            <span class="text-xs text-app-muted">修图模型</span>
+            <ModelSelect
+              v-model="selectedEditModelId"
+              :settings="appSettings"
+              :models="editModels"
+              :disabled="isRunning"
+              placeholder="选择修图模型"
+            />
+          </label>
+        </div>
 
         <button
           type="button"

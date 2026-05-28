@@ -54,7 +54,8 @@ export async function runAgent(
 ): Promise<AgentRunResult> {
   const validatedConfig = await InitConfig(config);
   const { contents: validatedContents, styles: validatedStyles } = await InputContent(contents, styles);
-  const client = createOpenRouterClient(validatedConfig);
+  const analysisClient = createOpenRouterClient(validatedConfig.analysis);
+  const editClient = createOpenRouterClient(validatedConfig.edit);
   const sourceContent = validatedContents[0];
 
   if (!sourceContent) {
@@ -75,7 +76,10 @@ export async function runAgent(
 
   let analysisResult;
   try {
-    analysisResult = await client.generateText(validatedConfig.analysisModel, analysisMessages);
+    analysisResult = await analysisClient.generateText(
+      validatedConfig.analysis.model,
+      analysisMessages,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(message.startsWith("分析阶段") ? message : `分析阶段：${message}`);
@@ -102,7 +106,7 @@ export async function runAgent(
   });
   let editResult;
   try {
-    editResult = await client.generateImage(validatedConfig.editModel, editMessages, {
+    editResult = await editClient.generateImage(validatedConfig.edit.model, editMessages, {
       imageConfig: {
         ...buildImageConfigForDimensions(sourceDimensions),
         ...options.imageConfig,

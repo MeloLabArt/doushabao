@@ -41,12 +41,12 @@ export async function generateImage(
       image: await prepareImageForApi(content.image),
     })),
   );
-  const client = createOpenRouterClient(validatedConfig);
+  const client = createOpenRouterClient(validatedConfig.edit);
   const messages = buildMessages(apiContents, validatedStyles, resolveSystemPrompt(options), {
     imageFirst: true,
     imageDetail: "high",
   });
-  const result = await client.generateImage(validatedConfig.editModel, messages, {
+  const result = await client.generateImage(validatedConfig.edit.model, messages, {
     ...options,
     imageConfig: {
       ...buildImageConfigForDimensions(sourceDimensions),
