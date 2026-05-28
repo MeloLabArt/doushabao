@@ -126,4 +126,124 @@ describe('save workspace', () => {
     expect(image.exists()).toBe(true)
     expect(image.attributes('src')).toBe('data:image/png;base64,abc')
   })
+
+  it('saves persisted workspace directly without opening dialog', async () => {
+    const { wrapper, router } = await mountAppOnWorkspace()
+    const workspaceId = router.currentRoute.value.params.workspaceId as string
+
+    stageWorkspaceChanges({
+      ...getWorkspace(workspaceId)!,
+      sourceImage: 'data:image/png;base64,abc',
+    })
+    await wrapper.vm.$nextTick()
+
+    const fileButton = wrapper.findAll('button').find((button) => button.text() === '文件')
+    await fileButton!.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const saveItem = getSaveMenuItem(wrapper)
+    await saveItem!.trigger('click')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement
+    const nameInput = dialog.querySelector('input[type="text"]') as HTMLInputElement
+    nameInput.value = '测试工作区'
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    const dialogSaveButton = Array.from(dialog.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === '保存',
+    )
+    dialogSaveButton!.click()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    stageWorkspaceChanges({
+      ...getWorkspace(workspaceId)!,
+      sourceImage: 'data:image/png;base64,def',
+    })
+    await wrapper.vm.$nextTick()
+
+    await fileButton!.trigger('click')
+    await wrapper.vm.$nextTick()
+    await saveItem!.trigger('click')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(document.body.textContent).not.toContain('保存工作区')
+    expect(isWorkspaceDirty(workspaceId)).toBe(false)
+    expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toContain('测试工作区')
+  })
+
+  it('rejects duplicate workspace names', async () => {
+    const { wrapper, router } = await mountAppOnWorkspace()
+    const firstWorkspaceId = router.currentRoute.value.params.workspaceId as string
+
+    stageWorkspaceChanges({
+      ...getWorkspace(firstWorkspaceId)!,
+      sourceImage: 'data:image/png;base64,abc',
+    })
+    await wrapper.vm.$nextTick()
+
+    const fileButton = wrapper.findAll('button').find((button) => button.text() === '文件')
+    await fileButton!.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const saveItem = getSaveMenuItem(wrapper)
+    await saveItem!.trigger('click')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    let dialog = document.body.querySelector('[role="dialog"]') as HTMLElement
+    let nameInput = dialog.querySelector('input[type="text"]') as HTMLInputElement
+    nameInput.value = '测试工作区'
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    let dialogSaveButton = Array.from(dialog.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === '保存',
+    )
+    dialogSaveButton!.click()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    await fileButton!.trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper
+      .findAll('[role="menuitem"]')
+      .find((item) => item.text().includes('新建工作区'))!
+      .trigger('click')
+    await flushPromises()
+    await router.isReady()
+
+    const secondWorkspaceId = router.currentRoute.value.params.workspaceId as string
+    stageWorkspaceChanges({
+      ...getWorkspace(secondWorkspaceId)!,
+      sourceImage: 'data:image/png;base64,xyz',
+    })
+    await wrapper.vm.$nextTick()
+
+    await fileButton!.trigger('click')
+    await wrapper.vm.$nextTick()
+    await saveItem!.trigger('click')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    dialog = document.body.querySelector('[role="dialog"]') as HTMLElement
+    nameInput = dialog.querySelector('input[type="text"]') as HTMLInputElement
+    nameInput.value = '测试工作区'
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    dialogSaveButton = Array.from(dialog.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === '保存',
+    )
+    dialogSaveButton!.click()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(dialog.textContent).toContain('工作区名称已存在，请使用其他名称')
+    expect(isWorkspaceDirty(secondWorkspaceId)).toBe(true)
+  })
 })

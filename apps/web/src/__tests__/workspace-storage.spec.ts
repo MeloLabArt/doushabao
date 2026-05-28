@@ -7,6 +7,8 @@ import {
   createWorkspace,
   getRecentWorkspaces,
   hydrateWorkspaceImage,
+  isPersistedWorkspace,
+  isWorkspaceNameTaken,
   loadLastWorkspaceId,
   loadWorkspace,
   loadWorkspaces,
@@ -42,6 +44,20 @@ describe('workspace-storage', () => {
     expect(stored?.createdAt).toBe(workspace.createdAt)
     expect(stored?.updatedAt).toBeGreaterThanOrEqual(workspace.updatedAt)
     expect(loadLastWorkspaceId()).toBe('workspace-1')
+  })
+
+  it('detects persisted workspaces and duplicate names', async () => {
+    expect(isPersistedWorkspace('workspace-1')).toBe(false)
+
+    await saveWorkspace({
+      ...createWorkspace('workspace-1'),
+      title: '海报 A',
+    })
+
+    expect(isPersistedWorkspace('workspace-1')).toBe(true)
+    expect(isWorkspaceNameTaken('海报 A')).toBe(true)
+    expect(isWorkspaceNameTaken('海报 A', 'workspace-1')).toBe(false)
+    expect(isWorkspaceNameTaken('海报 B')).toBe(false)
   })
 
   it('stores large source images outside localStorage', async () => {

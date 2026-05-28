@@ -30,7 +30,11 @@ import {
   undoWorkspaceImageChange,
 } from '@/lib/workspace-session'
 import { workspaceUndoRevision } from '@/lib/workspace-image-history'
-import { DEFAULT_WORKSPACE_TITLE } from '@/lib/workspace-storage'
+import {
+  DEFAULT_WORKSPACE_TITLE,
+  isPersistedWorkspace,
+  isWorkspaceNameTaken,
+} from '@/lib/workspace-storage'
 import type { Workspace } from '@/types/workspace'
 
 const router = useRouter()
@@ -227,6 +231,36 @@ async function requestExportActiveWorkspace(): Promise<void> {
   }
 }
 
+function openSaveDialog(workspace: Workspace): void {
+  saveError.value = ''
+  saveTargetWorkspace.value = { ...workspace }
+  saveDialogInitialName.value =
+    workspace.title === DEFAULT_WORKSPACE_TITLE ? '' : workspace.title
+  saveDialogOpen.value = true
+}
+
+async function saveWorkspaceDirectly(
+  workspace: Workspace,
+  options?: { pendingCloseTabId?: string | null },
+): Promise<void> {
+  isSavingWorkspace.value = true
+  saveError.value = ''
+
+  try {
+    await persistWorkspace(workspace)
+
+    const pendingCloseTabId = options?.pendingCloseTabId ?? closeTargetTabId.value
+    if (pendingCloseTabId) {
+      closeTargetTabId.value = null
+      performCloseTab(pendingCloseTabId)
+    }
+  } catch (error) {
+    saveError.value = error instanceof Error ? error.message : '保存失败'
+  } finally {
+    isSavingWorkspace.value = false
+  }
+}
+
 function requestSaveActiveWorkspace(): void {
   const workspaceId = activeWorkspaceId.value
   if (!workspaceId || !dirtyWorkspaceIds.value.has(workspaceId)) {
@@ -238,17 +272,23 @@ function requestSaveActiveWorkspace(): void {
     return
   }
 
-  saveError.value = ''
-  saveTargetWorkspace.value = { ...workspace }
-  saveDialogInitialName.value =
-    workspace.title === DEFAULT_WORKSPACE_TITLE ? '' : workspace.title
-  saveDialogOpen.value = true
+  if (isPersistedWorkspace(workspaceId)) {
+    void saveWorkspaceDirectly(workspace)
+    return
+  }
+
+  openSaveDialog(workspace)
 }
 
 async function confirmSaveWorkspace(name: string): Promise<void> {
   const workspace = saveTargetWorkspace.value
   if (!workspace) {
     saveError.value = '找不到要保存的工作区，请关闭弹窗后重试'
+    return
+  }
+
+  if (isWorkspaceNameTaken(name, workspace.id)) {
+    saveError.value = '工作区名称已存在，请使用其他名称'
     return
   }
 
@@ -410,11 +450,13 @@ function saveCloseUnsavedWorkspace(): void {
   }
 
   closeDialogOpen.value = false
-  saveError.value = ''
-  saveTargetWorkspace.value = { ...workspace }
-  saveDialogInitialName.value =
-    workspace.title === DEFAULT_WORKSPACE_TITLE ? '' : workspace.title
-  saveDialogOpen.value = true
+
+  if (isPersistedWorkspace(tabId)) {
+    void saveWorkspaceDirectly(workspace, { pendingCloseTabId: tabId })
+    return
+  }
+
+  openSaveDialog(workspace)
 }
 
 async function handleDeleteProject(workspaceId: string): Promise<void> {

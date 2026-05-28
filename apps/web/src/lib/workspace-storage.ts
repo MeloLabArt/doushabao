@@ -107,6 +107,21 @@ export function loadWorkspace(id: string): Workspace | null {
   return loadWorkspaces()[id] ?? null
 }
 
+export function isPersistedWorkspace(id: string): boolean {
+  return id in loadWorkspaces()
+}
+
+export function isWorkspaceNameTaken(name: string, excludeId?: string): boolean {
+  const trimmed = name.trim()
+  if (!trimmed) {
+    return false
+  }
+
+  return Object.values(loadWorkspaces()).some(
+    (workspace) => workspace.id !== excludeId && workspace.title.trim() === trimmed,
+  )
+}
+
 export async function hydrateWorkspaceImage(workspace: Workspace): Promise<Workspace> {
   if (workspace.sourceImage || !workspace.hasSourceImage) {
     return workspace
