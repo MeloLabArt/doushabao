@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  clearWorkspaceCache,
   DEFAULT_WORKSPACE_TITLE,
-  LAST_WORKSPACE_STORAGE_KEY,
-  WORKSPACES_STORAGE_KEY,
   createWorkspace,
   getRecentWorkspaces,
   hydrateWorkspaceImage,
@@ -19,11 +18,11 @@ import { clearWorkspaceImages, loadWorkspaceImage } from '../lib/workspace-image
 
 describe('workspace-storage', () => {
   beforeEach(() => {
-    localStorage.clear()
+    clearWorkspaceCache()
     clearWorkspaceImages()
   })
 
-  it('returns empty map when storage is empty', () => {
+  it('returns empty map when no workspaces exist', () => {
     expect(loadWorkspaces()).toEqual({})
   })
 
@@ -60,7 +59,7 @@ describe('workspace-storage', () => {
     expect(isWorkspaceNameTaken('海报 B')).toBe(false)
   })
 
-  it('stores large source images outside localStorage', async () => {
+  it('stores large source images via backend (or memory fallback)', async () => {
     const workspace = {
       ...createWorkspace('workspace-1'),
       title: '大图工作区',
@@ -69,9 +68,7 @@ describe('workspace-storage', () => {
 
     await saveWorkspace(workspace)
 
-    const raw = localStorage.getItem(WORKSPACES_STORAGE_KEY)
-    expect(raw).toBeTruthy()
-    expect(raw!.length).toBeLessThan(1024)
+    // Workspace metadata should NOT contain the raw sourceImage
     expect(loadWorkspace('workspace-1')).toMatchObject({
       id: 'workspace-1',
       title: '大图工作区',
@@ -79,6 +76,7 @@ describe('workspace-storage', () => {
     })
     expect(loadWorkspace('workspace-1')?.sourceImage).toBeUndefined()
 
+    // Image should be retrievable via hydrate
     const hydrated = await hydrateWorkspaceImage(loadWorkspace('workspace-1')!)
     expect(hydrated.sourceImage).toBe(workspace.sourceImage)
   })
@@ -98,12 +96,12 @@ describe('workspace-storage', () => {
       'workspace-2',
       'workspace-1',
     ])
-    expect(localStorage.getItem(LAST_WORKSPACE_STORAGE_KEY)).toBe('workspace-2')
+    expect(loadLastWorkspaceId()).toBe('workspace-2')
 
     vi.useRealTimers()
   })
 
-  it('replaces stored source image in IndexedDB', async () => {
+  it('replaces stored source image', async () => {
     const workspace = {
       ...createWorkspace('workspace-1'),
       title: '测试项目',

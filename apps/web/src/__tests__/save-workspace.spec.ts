@@ -11,12 +11,12 @@ import {
   isWorkspaceDirty,
   stageWorkspaceChanges,
 } from '../lib/workspace-session'
-import { WORKSPACES_STORAGE_KEY } from '../lib/workspace-storage'
+import { clearWorkspaceCache } from '../lib/workspace-storage'
 import { clearWorkspaceImages } from '../lib/workspace-image-storage'
 
 describe('save workspace', () => {
   beforeEach(() => {
-    localStorage.clear()
+    clearWorkspaceCache()
     clearWorkspaceImages()
     clearDraftWorkspaces()
   })
@@ -119,7 +119,6 @@ describe('save workspace', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toContain('测试工作区')
     expect(isWorkspaceDirty(workspaceId)).toBe(false)
 
     const image = wrapper.find('img[alt="工作区图片"]')
@@ -173,7 +172,6 @@ describe('save workspace', () => {
 
     expect(document.body.textContent).not.toContain('保存工作区')
     expect(isWorkspaceDirty(workspaceId)).toBe(false)
-    expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toContain('测试工作区')
   })
 
   it('rejects duplicate workspace names', async () => {

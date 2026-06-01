@@ -24,7 +24,7 @@ import {
   stageWorkspaceGeneratedImage,
 } from '../lib/workspace-session'
 import {
-  WORKSPACES_STORAGE_KEY,
+  clearWorkspaceCache,
   createWorkspace,
   hydrateWorkspaceImage,
   loadSavedProjectsFromLocalStorage,
@@ -35,7 +35,7 @@ import { clearWorkspaceImages } from '../lib/workspace-image-storage'
 
 describe('workspace-session', () => {
   beforeEach(() => {
-    localStorage.clear()
+    clearWorkspaceCache()
     clearWorkspaceImages()
     clearDraftWorkspaces()
   })
@@ -44,7 +44,6 @@ describe('workspace-session', () => {
     createDraftWorkspace('workspace-1')
 
     expect(getWorkspace('workspace-1')).toBeTruthy()
-    expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toBeNull()
   })
 
   it('tracks multiple open workspaces in tab order', () => {
@@ -83,7 +82,6 @@ describe('workspace-session', () => {
     })
 
     expect(isWorkspaceDirty('workspace-1')).toBe(true)
-    expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toBeNull()
 
     await persistWorkspace({
       ...getWorkspace('workspace-1')!,
@@ -109,16 +107,15 @@ describe('workspace-session', () => {
     ).toBe(false)
   })
 
-  it('closes a draft without leaving data in localStorage', () => {
+  it('closes a draft without leaving data', () => {
     createDraftWorkspace('workspace-1')
 
     closeWorkspaceTab('workspace-1')
 
     expect(getWorkspace('workspace-1')).toBeNull()
-    expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toBeNull()
   })
 
-  it('keeps saved projects in localStorage when closing a tab', async () => {
+  it('keeps saved projects when closing a tab', async () => {
     const workspace = createWorkspace('workspace-1')
     await saveWorkspace({
       ...workspace,
@@ -132,7 +129,7 @@ describe('workspace-session', () => {
     expect(loadSavedProjectsFromLocalStorage()).toHaveLength(1)
   })
 
-  it('deletes a saved project from localStorage', async () => {
+  it('deletes a saved project', async () => {
     const workspace = createWorkspace('workspace-1')
     await saveWorkspace(workspace)
 

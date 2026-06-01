@@ -4,11 +4,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import SavedProjectSidebar from '../components/SavedProjectSidebar.vue'
 import { clearWorkspaceImages } from '../lib/workspace-image-storage'
-import { createWorkspace, saveWorkspace } from '../lib/workspace-storage'
+import { clearWorkspaceCache, createWorkspace, saveWorkspace } from '../lib/workspace-storage'
 
 describe('SavedProjectSidebar', () => {
   beforeEach(async () => {
-    localStorage.clear()
+    clearWorkspaceCache()
     clearWorkspaceImages()
   })
 

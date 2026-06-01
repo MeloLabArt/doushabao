@@ -3,6 +3,14 @@ import type { Workspace } from '@/types/workspace'
 import { ref } from 'vue'
 
 import { translate } from '@/i18n'
+import {
+  createBackendWorkspace,
+  deleteBackendWorkspace,
+  listBackendWorkspaces,
+  loadBackendSettings,
+  saveBackendSettings,
+  updateBackendWorkspace,
+} from '@/lib/api-client'
 
 import {
   deleteWorkspaceImage,
@@ -15,9 +23,6 @@ export const savedWorkspacesRevision = ref(0)
 function notifySavedWorkspacesChanged(): void {
   savedWorkspacesRevision.value += 1
 }
-
-export const WORKSPACES_STORAGE_KEY = 'doushabao:workspaces'
-export const LAST_WORKSPACE_STORAGE_KEY = 'doushabao:last-workspace-id'
 
 export const DEFAULT_WORKSPACE_TITLE = '未命名'
 
@@ -35,102 +40,87 @@ function emptyWorkspaceMap(): WorkspaceMap {
   return {}
 }
 
-function normalizeWorkspace(raw: unknown): Workspace | null {
-  if (!raw || typeof raw !== 'object') {
-    return null
-  }
+// ── In-memory cache ───────────────────────────────────────────
 
-  const value = raw as Record<string, unknown>
-  if (typeof value.id !== 'string') {
-    return null
-  }
+let workspaceCache: WorkspaceMap = {}
 
-  const createdAt = typeof value.createdAt === 'number' ? value.createdAt : Date.now()
-  const updatedAt = typeof value.updatedAt === 'number' ? value.updatedAt : createdAt
-
-  if (typeof value.title === 'string') {
-    const workspace: Workspace = {
-      id: value.id,
-      title: value.title,
-      createdAt,
-      updatedAt,
-    }
-
-    if (typeof value.sourceImage === 'string') {
-      workspace.sourceImage = value.sourceImage
-      workspace.hasSourceImage = true
-    } else if (value.hasSourceImage === true) {
-      workspace.hasSourceImage = true
-    }
-
-    return workspace
-  }
-
-  const tabs = value.tabs
-  if (Array.isArray(tabs) && tabs[0] && typeof tabs[0] === 'object') {
-    const firstTab = tabs[0] as Record<string, unknown>
-    return {
-      id: value.id,
-      title: typeof firstTab.title === 'string' ? firstTab.title : DEFAULT_WORKSPACE_TITLE,
-      createdAt,
-      updatedAt,
-    }
-  }
-
-  return null
+/**
+ * Clear the in-memory workspace cache (used in tests).
+ */
+export function clearWorkspaceCache(): void {
+  workspaceCache = {}
 }
 
-function toStoredWorkspace(workspace: Workspace): Workspace {
-  const { sourceImage: _sourceImage, ...record } = workspace
-
-  return {
-    ...record,
-    updatedAt: Date.now(),
-    ...(workspace.sourceImage || workspace.hasSourceImage ? { hasSourceImage: true } : {}),
-  }
+function loadFromCache(): WorkspaceMap {
+  return { ...workspaceCache }
 }
 
+function saveToCache(workspaces: WorkspaceMap): void {
+  workspaceCache = { ...workspaces }
+}
+
+/**
+ * Strip sourceImage from a workspace — images stored separately.
+ */
+function stripSourceImage(workspace: Workspace): Workspace {
+  const { sourceImage: _img, ...rest } = workspace
+  return rest
+}
+
+// ── Sync API (reads from in-memory cache) ─────────────────────
+
+/** Synchronous read — returns from in-memory cache. */
 export function loadWorkspaces(): WorkspaceMap {
-  const raw = localStorage.getItem(WORKSPACES_STORAGE_KEY)
-  if (!raw) {
-    return emptyWorkspaceMap()
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const workspaces = emptyWorkspaceMap()
-
-    for (const [id, workspace] of Object.entries(parsed)) {
-      const normalized = normalizeWorkspace(workspace)
-      if (normalized) {
-        workspaces[id] = normalized
-      }
-    }
-
-    return workspaces
-  } catch {
-    return emptyWorkspaceMap()
-  }
+  return loadFromCache()
 }
 
+/** Synchronous read — returns from in-memory cache. */
 export function loadWorkspace(id: string): Workspace | null {
-  return loadWorkspaces()[id] ?? null
+  return workspaceCache[id] ?? null
 }
 
+/** Synchronous check — uses in-memory cache. */
 export function isPersistedWorkspace(id: string): boolean {
-  return id in loadWorkspaces()
+  return id in workspaceCache
 }
 
+/** Synchronous check — uses in-memory cache. */
 export function isWorkspaceNameTaken(name: string, excludeId?: string): boolean {
   const trimmed = name.trim()
   if (!trimmed) {
     return false
   }
 
-  return Object.values(loadWorkspaces()).some(
+  return Object.values(workspaceCache).some(
     (workspace) => workspace.id !== excludeId && workspace.title.trim() === trimmed,
   )
 }
+
+/** Synchronous read — returns from cache, sorted by updatedAt desc. */
+export function getRecentWorkspaces(): Workspace[] {
+  return Object.values(workspaceCache).sort(
+    (left, right) => right.updatedAt - left.updatedAt,
+  )
+}
+
+export function loadSavedProjectsFromLocalStorage(): Workspace[] {
+  return getRecentWorkspaces()
+}
+
+// ── Last workspace ID (in-memory + backend) ───────────────────
+
+let lastWorkspaceId: string | null = null
+
+export function loadLastWorkspaceId(): string | null {
+  return lastWorkspaceId
+}
+
+export function saveLastWorkspaceId(id: string): void {
+  lastWorkspaceId = id
+  saveBackendSettings({ last_workspace: id }).catch(() => {})
+}
+
+// ── Async API (writes to backend + in-memory cache) ───────────
 
 export async function hydrateWorkspaceImage(workspace: Workspace): Promise<Workspace> {
   if (workspace.sourceImage || !workspace.hasSourceImage) {
@@ -149,42 +139,29 @@ export async function hydrateWorkspaceImage(workspace: Workspace): Promise<Works
 }
 
 export async function deleteWorkspace(id: string): Promise<void> {
-  const workspaces = loadWorkspaces()
-  if (!(id in workspaces)) {
-    return
+  // Delete from backend (best-effort)
+  try {
+    await deleteBackendWorkspace(id)
+  } catch {
+    // Backend unavailable
   }
 
-  delete workspaces[id]
-  localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces))
+  // Delete from in-memory cache
+  const cache = loadFromCache()
+  delete cache[id]
+  saveToCache(cache)
+
+  // Delete image
   await deleteWorkspaceImage(id)
   notifySavedWorkspacesChanged()
 
-  if (loadLastWorkspaceId() === id) {
-    const [nextWorkspace] = getRecentWorkspaces()
-    if (nextWorkspace) {
-      saveLastWorkspaceId(nextWorkspace.id)
-    } else {
-      localStorage.removeItem(LAST_WORKSPACE_STORAGE_KEY)
+  // Update last workspace
+  if (lastWorkspaceId === id) {
+    const recent = getRecentWorkspaces()
+    if (recent.length > 0) {
+      saveLastWorkspaceId(recent[0]!.id)
     }
   }
-}
-
-export function loadLastWorkspaceId(): string | null {
-  return localStorage.getItem(LAST_WORKSPACE_STORAGE_KEY)
-}
-
-export function saveLastWorkspaceId(id: string): void {
-  localStorage.setItem(LAST_WORKSPACE_STORAGE_KEY, id)
-}
-
-export function getRecentWorkspaces(): Workspace[] {
-  return loadSavedProjectsFromLocalStorage()
-}
-
-export function loadSavedProjectsFromLocalStorage(): Workspace[] {
-  return Object.values(loadWorkspaces()).sort(
-    (left, right) => right.updatedAt - left.updatedAt,
-  )
 }
 
 export async function replaceWorkspaceSourceImage(
@@ -200,14 +177,22 @@ export async function replaceWorkspaceSourceImage(
     updatedAt: Date.now(),
   }
 
-  const existing = loadWorkspace(workspace.id)
-  if (!existing) {
-    return nextWorkspace
+  // Update in-memory cache (strip sourceImage — stored separately)
+  const cache = loadFromCache()
+  cache[workspace.id] = stripSourceImage(nextWorkspace)
+  saveToCache(cache)
+
+  // Try backend
+  try {
+    await updateBackendWorkspace(workspace.id, {
+      title: nextWorkspace.title,
+      updatedAt: nextWorkspace.updatedAt,
+      hasSourceImage: true,
+    })
+  } catch {
+    // Backend unavailable — cache already updated
   }
 
-  const workspaces = loadWorkspaces()
-  workspaces[workspace.id] = toStoredWorkspace(nextWorkspace)
-  localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces))
   saveLastWorkspaceId(workspace.id)
   notifySavedWorkspacesChanged()
 
@@ -223,32 +208,40 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
     await deleteWorkspaceImage(workspace.id)
   }
 
-  const workspaces = loadWorkspaces()
-  const storedWorkspace = toStoredWorkspace({
+  // Cache metadata only (strip sourceImage — stored separately)
+  const cachedWorkspace = stripSourceImage({
     ...workspace,
     hasSourceImage: hasSourceImage || workspace.hasSourceImage,
+    updatedAt: Date.now(),
   })
 
-  workspaces[storedWorkspace.id] = storedWorkspace
-  localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces))
-  saveLastWorkspaceId(storedWorkspace.id)
-  notifySavedWorkspacesChanged()
+  const cache = loadFromCache()
+  cache[cachedWorkspace.id] = cachedWorkspace
+  saveToCache(cache)
 
-  if (workspace.sourceImage) {
-    await migrateLegacyWorkspaceRecord(workspace.id)
+  // Try backend
+  try {
+    const backend = await listBackendWorkspaces()
+    if (backend.some((w) => w.id === workspace.id)) {
+      await updateBackendWorkspace(workspace.id, {
+        title: cachedWorkspace.title,
+        updatedAt: cachedWorkspace.updatedAt,
+        hasSourceImage: cachedWorkspace.hasSourceImage,
+      })
+    } else {
+      await createBackendWorkspace({
+        id: cachedWorkspace.id,
+        title: cachedWorkspace.title,
+        createdAt: cachedWorkspace.createdAt,
+        updatedAt: cachedWorkspace.updatedAt,
+        hasSourceImage: cachedWorkspace.hasSourceImage ?? false,
+      })
+    }
+  } catch {
+    // Backend unavailable — cache already updated
   }
-}
 
-async function migrateLegacyWorkspaceRecord(workspaceId: string): Promise<void> {
-  const workspaces = loadWorkspaces()
-  const current = workspaces[workspaceId]
-  if (!current?.sourceImage) {
-    return
-  }
-
-  await saveWorkspaceImage(workspaceId, current.sourceImage)
-  workspaces[workspaceId] = toStoredWorkspace(current)
-  localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces))
+  saveLastWorkspaceId(cachedWorkspace.id)
   notifySavedWorkspacesChanged()
 }
 
@@ -260,5 +253,50 @@ export function createWorkspace(id: string): Workspace {
     title: DEFAULT_WORKSPACE_TITLE,
     createdAt: now,
     updatedAt: now,
+  }
+}
+
+// ── Startup sync: load backend into in-memory cache ───────────
+
+/**
+ * Sync workspaces from backend into in-memory cache on app startup.
+ */
+export async function syncWorkspacesFromBackend(): Promise<number> {
+  try {
+    const backend = await listBackendWorkspaces()
+    const cache = loadFromCache()
+    let count = 0
+
+    for (const w of backend) {
+      if (!cache[w.id]) {
+        cache[w.id] = {
+          id: w.id,
+          title: w.title,
+          createdAt: w.createdAt,
+          updatedAt: w.updatedAt,
+          hasSourceImage: w.hasSourceImage,
+        }
+        count++
+      }
+    }
+
+    // Also sync last_workspace from backend
+    try {
+      const settings = await loadBackendSettings()
+      if (settings.last_workspace) {
+        lastWorkspaceId = settings.last_workspace
+      }
+    } catch {
+      // ignore
+    }
+
+    if (count > 0) {
+      saveToCache(cache)
+      notifySavedWorkspacesChanged()
+    }
+
+    return count
+  } catch {
+    return 0
   }
 }

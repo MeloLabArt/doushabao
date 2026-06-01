@@ -1,12 +1,12 @@
-import { generateImage, readImageDimensions } from '@doushabao/core'
-import { getEditorSystemPrompt } from '@doushabao/agents'
-
+/**
+ * Thin wrapper that bridges the workspace layer to the backend API.
+ * The Python backend handles: prompt building, AI calls, image normalization.
+ */
 import { translate } from '@/i18n'
 
 import { validateRunConfig } from '@/lib/app-settings'
-import { buildEditorPrompt, buildEditorReferencePrompt } from '@/lib/build-editor-prompt'
+import { generateImageViaBackend, type EditorMarkData } from '@/lib/api-client'
 import { loadAppSettings } from '@/lib/config-storage'
-import { renderAnnotatedImage } from '@/lib/render-annotated-image'
 import { hydrateWorkspaceImage } from '@/lib/workspace-storage'
 import type { EditorMark } from '@/types/editor-mark'
 import type { ModelSelection } from '@/types/app-settings'
@@ -22,7 +22,7 @@ export async function runWorkspaceEditor(
   }
 
   const settings = loadAppSettings()
-  const config = await validateRunConfig(settings, modelSelection)
+  const config = validateRunConfig(settings, modelSelection)
 
   const hydrated = await hydrateWorkspaceImage(workspace)
 
@@ -30,22 +30,18 @@ export async function runWorkspaceEditor(
     throw new Error(translate('errors.uploadImageFirst'))
   }
 
-  const dimensions = await readImageDimensions(hydrated.sourceImage)
-  const annotatedImage = await renderAnnotatedImage(hydrated.sourceImage, marks)
-  const prompt = buildEditorPrompt(marks, dimensions)
-  const referencePrompt = buildEditorReferencePrompt()
+  // Send marks to backend — the backend builds the full prompt
+  const marksData: EditorMarkData[] = marks.map((m) => ({
+    center_x: m.centerX,
+    center_y: m.centerY,
+    radius: m.radius,
+    description: m.description,
+  }))
 
-  const result = await generateImage(
+  const result = await generateImageViaBackend(
     config,
-    [
-      { content: prompt, image: hydrated.sourceImage },
-      { content: referencePrompt, image: annotatedImage },
-    ],
-    [{ style: '' }, { style: '' }],
-    {
-      mode: 'editor',
-      systemPrompt: getEditorSystemPrompt(),
-    },
+    hydrated.sourceImage,
+    marksData,
   )
 
   const nextImage = result.images[0]

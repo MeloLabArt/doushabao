@@ -1,10 +1,12 @@
-export type AppLocale = 'zh-CN' | 'zh-Hant' | 'en' | 'ja' | 'ko'
+import { loadBackendSettings, saveBackendSettings } from '@/lib/api-client'
 
-export const LOCALE_STORAGE_KEY = 'doushabao:locale'
+export type AppLocale = 'zh-CN' | 'zh-Hant' | 'en' | 'ja' | 'ko'
 
 export const FALLBACK_LOCALE: AppLocale = 'en'
 
 export const SUPPORTED_LOCALES: AppLocale[] = ['zh-CN', 'zh-Hant', 'en', 'ja', 'ko']
+
+let currentLocale: AppLocale | null = null
 
 export function isAppLocale(value: unknown): value is AppLocale {
   return typeof value === 'string' && (SUPPORTED_LOCALES as string[]).includes(value)
@@ -46,14 +48,28 @@ function detectBrowserLocale(): AppLocale {
 }
 
 export function loadLocale(): AppLocale {
-  const raw = localStorage.getItem(LOCALE_STORAGE_KEY)
-  if (raw === 'zh-TW') {
-    saveLocale('zh-Hant')
-    return 'zh-Hant'
+  if (currentLocale) {
+    return currentLocale
   }
-  return isAppLocale(raw) ? raw : detectBrowserLocale()
+  return detectBrowserLocale()
 }
 
 export function saveLocale(locale: AppLocale): void {
-  localStorage.setItem(LOCALE_STORAGE_KEY, locale)
+  currentLocale = locale
+  saveBackendSettings({ locale }).catch(() => {
+    // Backend unavailable
+  })
+}
+
+export async function syncLocaleFromBackend(): Promise<AppLocale> {
+  try {
+    const settings = await loadBackendSettings()
+    if (isAppLocale(settings.locale)) {
+      currentLocale = settings.locale as AppLocale
+      return currentLocale
+    }
+  } catch {
+    // Backend unavailable
+  }
+  return loadLocale()
 }

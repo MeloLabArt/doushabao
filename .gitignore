@@ -28,7 +28,8 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
-
+*.debug
+workspace_images
 *.tsbuildinfo
 
 .eslintcache
@@ -42,3 +43,13 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Python / uv
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -3,13 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDraftWorkspace, getWorkspace, stageWorkspaceChanges } from '../lib/workspace-session'
 import { runWorkspaceEditor } from '../lib/run-workspace-editor'
 
-vi.mock('@doushabao/core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@doushabao/core')>()
-  return {
-    ...actual,
-    generateImage: vi.fn(),
-    readImageDimensions: vi.fn(async () => ({ width: 1200, height: 900 })),
-  }
+vi.mock('../lib/api-client', async () => {
+  const generateImageViaBackend = vi.fn()
+  return { generateImageViaBackend }
 })
 
 vi.mock('../lib/config-storage', () => ({
@@ -40,13 +36,9 @@ vi.mock('../lib/config-storage', () => ({
   })),
 }))
 
-vi.mock('../lib/render-annotated-image', () => ({
-  renderAnnotatedImage: vi.fn(async () => 'data:image/png;base64,annotated'),
-}))
+import { generateImageViaBackend } from '../lib/api-client'
 
-import { generateImage } from '@doushabao/core'
-
-const mockedGenerateImage = vi.mocked(generateImage)
+const mockedGenerateImage = vi.mocked(generateImageViaBackend)
 
 function stageWorkspaceWithImage(workspaceId: string) {
   stageWorkspaceChanges({
@@ -73,12 +65,13 @@ describe('runWorkspaceEditor', () => {
     )
   })
 
-  it('calls generateImage with original image, reference annotation, and full-frame prompt', async () => {
+  it('sends marks to backend (no pre-built prompt)', async () => {
     createDraftWorkspace('workspace-1')
     stageWorkspaceWithImage('workspace-1')
 
     mockedGenerateImage.mockResolvedValue({
       images: ['data:image/png;base64,result'],
+      text: null,
     })
 
     const result = await runWorkspaceEditor(getWorkspace('workspace-1')!, [
@@ -92,22 +85,17 @@ describe('runWorkspaceEditor', () => {
     ])
 
     expect(result).toBe('data:image/png;base64,result')
-    expect(mockedGenerateImage).toHaveBeenCalledWith(
+
+    // Should call backend with image + marks (not pre-built prompt)
+    const callArgs = mockedGenerateImage.mock.calls[0]!
+    expect(callArgs[1]).toBe('data:image/png;base64,abc') // image
+    expect(callArgs[2]).toEqual([
       expect.objectContaining({
-        edit: expect.objectContaining({ model: 'edit-model' }),
+        center_x: 0.5,
+        center_y: 0.5,
+        radius: 0.1,
+        description: '去掉杂物',
       }),
-      [
-        expect.objectContaining({
-          image: 'data:image/png;base64,abc',
-          content: expect.stringContaining('Circle 1: 去掉杂物'),
-        }),
-        expect.objectContaining({
-          image: 'data:image/png;base64,annotated',
-          content: expect.stringContaining('Annotation reference'),
-        }),
-      ],
-      [{ style: '' }, { style: '' }],
-      expect.objectContaining({ mode: 'editor' }),
-    )
+    ])
   })
 })

@@ -1,4 +1,4 @@
-import type { DeficiencyCategory, ImageType } from '@doushabao/agents'
+import type { DeficiencyCategory, ImageType } from '@/types/agent'
 
 import { translate } from '@/i18n'
 

@@ -7,9 +7,11 @@ import {
 } from '@/lib/app-settings'
 import { translate } from '@/i18n'
 import { DEFAULT_OPENROUTER_HOST } from '@/lib/model-providers'
+import { loadBackendSettings, saveBackendSettings } from '@/lib/api-client'
+import { isTheme, applyTheme, saveTheme, type Theme } from '@/lib/theme-storage'
+import { isAppLocale, saveLocale, type AppLocale } from '@/lib/locale-storage'
+import { applyLocale } from '@/i18n'
 import type { AppSettings, ModelEntry } from '@/types/app-settings'
-
-export const CONFIG_STORAGE_KEY = 'doushabao:config'
 
 export { DEFAULT_OPENROUTER_HOST }
 
@@ -29,91 +31,83 @@ function isAppSettings(parsed: StoredPayload): parsed is AppSettings {
   return Array.isArray(parsed.providers) && Array.isArray(parsed.models)
 }
 
-function migrateLegacyConfig(parsed: LegacyFlatConfig): AppSettings {
-  const settings = emptyAppSettings()
-  const provider = settings.providers.find((item) => item.id === 'openrouter')!
-  const legacyModel = parsed.model ?? ''
+// ── In-memory cache ───────────────────────────────────────────
 
-  provider.host = parsed.host ?? DEFAULT_OPENROUTER_HOST
-  provider.key = parsed.key ?? ''
+let cachedSettings: AppSettings | null = null
 
-  const analysisModelId = parsed.analysisModel ?? legacyModel
-  const editModelId = parsed.editModel ?? legacyModel
-
-  const models: ModelEntry[] = []
-
-  if (analysisModelId.trim()) {
-    const id = createId()
-    models.push({
-      id,
-      providerId: 'openrouter',
-      modelId: analysisModelId.trim(),
-      label: translate('migration.analysisModel'),
-      roles: ['analysis'],
-    })
-    settings.defaultAnalysisModelId = id
-  }
-
-  if (editModelId.trim() && editModelId.trim() !== analysisModelId.trim()) {
-    const id = createId()
-    models.push({
-      id,
-      providerId: 'openrouter',
-      modelId: editModelId.trim(),
-      label: translate('migration.editModel'),
-      roles: ['edit'],
-    })
-    settings.defaultEditModelId = id
-  } else if (editModelId.trim() && !settings.defaultEditModelId) {
-    const existing = models[0]
-    if (existing) {
-      existing.roles = ['analysis', 'edit']
-      settings.defaultEditModelId = existing.id
-    }
-  }
-
-  if (
-    editModelId.trim() &&
-    analysisModelId.trim() === editModelId.trim() &&
-    models.length === 1
-  ) {
-    models[0]!.roles = ['analysis', 'edit']
-    settings.defaultEditModelId = models[0]!.id
-  }
-
-  settings.models = models
-
-  return settings
-}
-
-export function loadAppSettings(): AppSettings {
-  const raw = localStorage.getItem(CONFIG_STORAGE_KEY)
-  if (!raw) {
-    return emptyAppSettings()
-  }
+/**
+ * Initialize the cache from the backend. Called once on app startup.
+ * Also syncs theme and locale to in-memory stores.
+ * Falls back to empty settings if backend is unavailable.
+ */
+export async function initAppSettings(): Promise<AppSettings> {
+  let appSettings: AppSettings | null = null
 
   try {
-    const parsed = JSON.parse(raw) as StoredPayload
+    const backend = await loadBackendSettings()
+    const raw = backend.app_settings
 
-    if (isAppSettings(parsed)) {
-      return normalizeAppSettings({
-        providers: parsed.providers,
-        models: parsed.models,
-        defaultAnalysisModelId: parsed.defaultAnalysisModelId ?? '',
-        defaultEditModelId: parsed.defaultEditModelId ?? '',
-      })
+    // Sync theme to in-memory
+    if (isTheme(backend.theme)) {
+      saveTheme(backend.theme as Theme)
     }
 
-    return migrateLegacyConfig(parsed)
+    // Sync locale to in-memory
+    if (isAppLocale(backend.locale)) {
+      saveLocale(backend.locale as AppLocale)
+      applyLocale(backend.locale as AppLocale)
+    }
+
+    if (raw && raw !== '{}') {
+      const parsed = JSON.parse(raw) as StoredPayload
+      if (isAppSettings(parsed)) {
+        appSettings = normalizeAppSettings({
+          providers: parsed.providers,
+          models: parsed.models,
+          defaultAnalysisModelId: parsed.defaultAnalysisModelId ?? '',
+          defaultEditModelId: parsed.defaultEditModelId ?? '',
+        })
+      }
+    }
   } catch {
-    return emptyAppSettings()
+    // Backend unavailable
   }
+
+  cachedSettings = appSettings ?? emptyAppSettings()
+  return cachedSettings
 }
 
+/**
+ * Synchronous read from cache. Returns empty defaults if not yet initialized.
+ */
+export function loadAppSettings(): AppSettings {
+  return cachedSettings ?? emptyAppSettings()
+}
+
+/**
+ * Validate & persist settings to backend + update cache.
+ */
 export async function saveAppSettings(settings: AppSettings): Promise<AppSettings> {
-  const validated = await validateAndResolveDefaults(settings)
-  localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(validated))
+  const validated = validateAndResolveDefaults(settings)
+  cachedSettings = validated
+  await saveBackendSettings({ app_settings: JSON.stringify(validated) }).catch(() => {
+    // Backend unavailable — cache is still updated
+  })
   return validated
+}
+
+/**
+ * Clear all settings (reset to defaults in backend + cache).
+ */
+export async function clearAppSettings(): Promise<AppSettings> {
+  try {
+    await saveBackendSettings({ app_settings: "{}" })
+  } catch {
+    // Backend unavailable
+  }
+
+  cachedSettings = emptyAppSettings()
+  return cachedSettings
 }
 
 export { resolveRunConfig } from '@/lib/app-settings'

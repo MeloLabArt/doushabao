@@ -6,11 +6,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from '../App.vue'
 import * as readImageFile from '../lib/read-image-file'
 import { getWorkspace, isWorkspaceDirty } from '../lib/workspace-session'
-import { WORKSPACES_STORAGE_KEY } from '../lib/workspace-storage'
 
 describe('App', () => {
   beforeEach(() => {
-    localStorage.clear()
   })
 
   it('mounts renders properly', async () => {
@@ -72,7 +70,6 @@ describe('App', () => {
 
     expect(router.currentRoute.value.name).toBe('workspace')
     expect(router.currentRoute.value.params.workspaceId).toBeTruthy()
-    expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toBeNull()
   })
 
   it('creates a workspace with image when clicking 打开', async () => {
@@ -132,6 +129,5 @@ describe('App', () => {
     const workspace = getWorkspace(workspaceId)
     expect(workspace?.sourceImage).toMatch(/^data:image\/png;base64,/)
     expect(isWorkspaceDirty(workspaceId)).toBe(true)
-    expect(localStorage.getItem(WORKSPACES_STORAGE_KEY)).toBeNull()
   })
 })

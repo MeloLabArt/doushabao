@@ -32,6 +32,8 @@ import {
   undoWorkspaceImageChange,
   workspaceContentRevision,
 } from '@/lib/workspace-session'
+import { initAppSettings } from '@/lib/config-storage'
+import { syncWorkspacesFromBackend } from '@/lib/workspace-storage'
 import { workspaceUndoRevision } from '@/lib/workspace-image-history'
 import {
   DEFAULT_WORKSPACE_TITLE,
@@ -377,6 +379,14 @@ function onDocumentKeyDown(event: KeyboardEvent): void {
 
 onMounted(() => {
   document.addEventListener('keydown', onDocumentKeyDown)
+
+  // Initialize all data from backend
+  Promise.all([
+    initAppSettings(),
+    syncWorkspacesFromBackend(),
+  ]).catch(() => {
+    // Silently fail — will use in-memory defaults
+  })
 })
 
 onUnmounted(() => {

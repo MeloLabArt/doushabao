@@ -7,7 +7,6 @@ import {
   getDisplayWorkspaceTitle,
   loadSavedProjectsFromLocalStorage,
   savedWorkspacesRevision,
-  WORKSPACES_STORAGE_KEY,
 } from '@/lib/workspace-storage'
 import type { Workspace } from '@/types/workspace'
 
@@ -25,26 +24,17 @@ const emit = defineEmits<{
 const savedProjects = ref<Workspace[]>([])
 const pendingDeleteId = ref<string | null>(null)
 
-function refreshFromLocalStorage(): void {
+function refreshProjects(): void {
   savedProjects.value = loadSavedProjectsFromLocalStorage()
 }
 
-function onStorageEvent(event: StorageEvent): void {
-  if (event.key === WORKSPACES_STORAGE_KEY || event.key === null) {
-    refreshFromLocalStorage()
-  }
-}
-
-watch(savedWorkspacesRevision, refreshFromLocalStorage)
+watch(savedWorkspacesRevision, refreshProjects)
 
 onMounted(() => {
-  refreshFromLocalStorage()
-  window.addEventListener('storage', onStorageEvent)
+  refreshProjects()
 })
 
-onUnmounted(() => {
-  window.removeEventListener('storage', onStorageEvent)
-})
+onUnmounted(() => {})
 
 function formatUpdatedAt(timestamp: number): string {
   return new Date(timestamp).toLocaleString(locale.value, {

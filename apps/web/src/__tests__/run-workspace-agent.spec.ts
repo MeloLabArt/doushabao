@@ -3,12 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runWorkspaceAgent } from '../lib/run-workspace-agent'
 import type { Workspace } from '@/types/workspace'
 
-vi.mock('@doushabao/core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@doushabao/core')>()
-  return {
-    ...actual,
-    runAgent: vi.fn(),
-  }
+vi.mock('../lib/api-client', async () => {
+  const runAgentViaBackend = vi.fn()
+  return { runAgentViaBackend }
 })
 
 vi.mock('../lib/config-storage', () => ({
@@ -43,9 +40,9 @@ vi.mock('../lib/workspace-storage', () => ({
   hydrateWorkspaceImage: vi.fn(async (workspace: Workspace) => workspace),
 }))
 
-import { runAgent } from '@doushabao/core'
+import { runAgentViaBackend } from '../lib/api-client'
 
-const mockedRunAgent = vi.mocked(runAgent)
+const mockedRunAgentViaBackend = vi.mocked(runAgentViaBackend)
 
 describe('run-workspace-agent', () => {
   const workspace: Workspace = {
@@ -58,11 +55,11 @@ describe('run-workspace-agent', () => {
   }
 
   beforeEach(() => {
-    mockedRunAgent.mockReset()
+    mockedRunAgentViaBackend.mockReset()
   })
 
-  it('calls runAgent with hydrated workspace image', async () => {
-    mockedRunAgent.mockResolvedValue({
+  it('calls runAgentViaBackend with hydrated workspace image', async () => {
+    mockedRunAgentViaBackend.mockResolvedValue({
       analysis: {
         imageType: 'pure_portrait',
         imageTypeReason: '人物占满画面',
@@ -72,12 +69,12 @@ describe('run-workspace-agent', () => {
       },
       analysisRaw: '{}',
       images: ['data:image/png;base64,result'],
-      sourceDimensions: { width: 100, height: 100 },
+      text: null,
     })
 
     await runWorkspaceAgent(workspace, '提高清晰度')
 
-    expect(mockedRunAgent).toHaveBeenCalledWith(
+    expect(mockedRunAgentViaBackend).toHaveBeenCalledWith(
       {
         analysis: {
           host: 'https://openrouter.ai/api/v1',
@@ -90,8 +87,8 @@ describe('run-workspace-agent', () => {
           model: 'edit-model',
         },
       },
-      [{ content: '提高清晰度', image: 'data:image/png;base64,abc' }],
-      [{ style: '' }],
+      'data:image/png;base64,abc',
+      '提高清晰度',
       { onProgress: undefined },
     )
   })

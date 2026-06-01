@@ -1,5 +1,3 @@
-import { InitConfig, type Config } from '@doushabao/core'
-
 import { translate } from '@/i18n'
 
 import {
@@ -10,6 +8,18 @@ import {
   isProviderKind,
 } from '@/lib/model-providers'
 import type { AppSettings, ModelEntry, ModelProvider, ModelRole, ModelSelection, ProviderKind } from '@/types/app-settings'
+
+// Local Config type (no @doushabao/core dependency)
+interface ModelEndpoint {
+  host: string
+  key: string
+  model: string
+}
+
+interface Config {
+  analysis: ModelEndpoint
+  edit: ModelEndpoint
+}
 
 export function createId(): string {
   return crypto.randomUUID()
@@ -143,17 +153,29 @@ export function resolveRunConfig(
   }
 }
 
-export async function validateRunConfig(
+export function validateRunConfig(
   settings: AppSettings,
   selection?: ModelSelection,
-): Promise<Config> {
+): Config {
   const config = resolveRunConfig(settings, selection)
 
   if (!config) {
     throw new Error(translate('errors.configureModelsFirst'))
   }
 
-  return InitConfig(config)
+  if (!config.analysis.host.trim() || !config.analysis.model.trim()) {
+    throw new Error(`${translate('errors.analysisModelRequired')}：配置不完整`)
+  }
+
+  if (!config.edit.host.trim() || !config.edit.model.trim()) {
+    throw new Error(`${translate('errors.editModelRequired')}：配置不完整`)
+  }
+
+  if (config.analysis.model === config.edit.model && config.analysis.host === config.edit.host) {
+    throw new Error('分析模型与修图模型不能相同，修图模型需支持图像输出')
+  }
+
+  return config
 }
 
 export function validateAppSettings(settings: AppSettings): string | null {
@@ -230,7 +252,7 @@ export function validateAppSettings(settings: AppSettings): string | null {
   return null
 }
 
-export async function validateAndResolveDefaults(settings: AppSettings): Promise<AppSettings> {
+export function validateAndResolveDefaults(settings: AppSettings): AppSettings {
   const normalized = normalizeAppSettings(settings)
   const error = validateAppSettings(normalized)
 
@@ -238,7 +260,7 @@ export async function validateAndResolveDefaults(settings: AppSettings): Promise
     throw new Error(error)
   }
 
-  await validateRunConfig(normalized)
+  validateRunConfig(normalized)
 
   return normalized
 }

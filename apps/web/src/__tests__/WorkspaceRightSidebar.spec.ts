@@ -132,7 +132,7 @@ describe('WorkspaceRightSidebar', () => {
       },
       analysisRaw: '{}',
       images: ['data:image/png;base64,result'],
-      sourceDimensions: { width: 1200, height: 900 },
+      text: null,
     })
 
     const wrapper = mount(WorkspaceRightSidebar, {

@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-import type { AgentImageAnalysis } from '@doushabao/agents'
+import type { AgentImageAnalysis } from '@/types/agent'
 
 import type { EditMode } from '@/lib/edit-mode'
 import type { EditorMark } from '@/types/editor-mark'
