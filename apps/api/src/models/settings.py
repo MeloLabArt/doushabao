@@ -5,12 +5,17 @@ import os
 
 from sqlmodel import Field, Session, SQLModel, create_engine
 
-# SQLite database path (relative to api directory)
-DATABASE_URL = "sqlite:///./doushabao.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# ── Data directory (override via DOUSHABAO_DATA_DIR for Docker) ──
+_DATA_DIR = os.environ.get("DOUSHABAO_DATA_DIR")
+if _DATA_DIR:
+    _db_path = os.path.join(_DATA_DIR, "doushabao.db")
+    DATABASE_URL = f"sqlite:///{_db_path}"
+    WORKSPACE_IMAGES_DIR = os.path.join(_DATA_DIR, "workspace_images")
+else:
+    DATABASE_URL = "sqlite:///./doushabao.db"
+    WORKSPACE_IMAGES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "workspace_images")
 
-# Workspace images directory (relative to api directory)
-WORKSPACE_IMAGES_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "workspace_images")
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 
 class AppConfig(SQLModel, table=True):
