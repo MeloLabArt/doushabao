@@ -1,67 +1,67 @@
 .PHONY: serve setup build build-api build-desktop build-desktop-mac build-desktop-win build-desktop-linux docker-up docker-up-d docker-down docker-logs docker-build docker-ps
 
-# 一键安装前后端所有依赖
+# Install all dependencies (frontend + backend)
 setup:
 	uv sync --directory apps/api && pnpm install
 
-# 启动一体化开发服务器（http://localhost:8000）
-# vite build --watch 自动重新构建前端，刷新浏览器即可看到变更
+# Start the integrated dev server (http://localhost:8000)
+# vite build --watch rebuilds frontend automatically; refresh browser to see changes
 serve:
 	python scripts/serve.py
 
-# 构建前端（生产部署前执行）
+# Build the frontend for production
 build:
 	@python scripts/banner.py
 	cd apps/web && pnpm build
 
-# ── 桌面应用构建 ─────────────────────────────────────────────────
+# ── Desktop App Build ────────────────────────────────────────────
 
-# 仅打包 Python 后端为独立可执行文件（用于桌面应用）
+# Package only the Python backend as a standalone executable
 build-api:
 	python scripts/build-desktop.py --skip-frontend --skip-electron
 
-# 构建桌面应用（当前平台）
+# Build the desktop app for the current platform
 build-desktop:
 	python scripts/build-desktop.py
 
-# 构建桌面应用（macOS DMG）
+# Build the desktop app (macOS DMG)
 build-desktop-mac:
 	python scripts/build-desktop.py --mac
 
-# 构建桌面应用（Windows NSIS）
+# Build the desktop app (Windows NSIS)
 build-desktop-win:
 	python scripts/build-desktop.py --win
 
-# 构建桌面应用（Linux AppImage/deb）
+# Build the desktop app (Linux AppImage/deb)
 build-desktop-linux:
 	python scripts/build-desktop.py --linux
 
-# 构建所有平台桌面安装包
+# Build desktop installers for all platforms
 build-desktop-all:
 	python scripts/build-desktop.py --all
 
-# ── Docker 一键部署 ─────────────────────────────────────────────
+# ── Docker Quick Deploy ─────────────────────────────────────────
 
-# 构建并启动 Docker 容器（前台，查看日志用 Ctrl+C 停止）
+# Build and start Docker containers (foreground; Ctrl+C to stop)
 docker-up:
 	docker compose up
 
-# 构建并启动 Docker 容器（后台守护式）
+# Build and start Docker containers (detached daemon mode)
 docker-up-d:
 	docker compose up -d
 
-# 停止 Docker 容器
+# Stop Docker containers
 docker-down:
 	docker compose down
 
-# 查看 Docker 容器日志
+# Tail Docker container logs
 docker-logs:
 	docker compose logs -f
 
-# 仅重新构建镜像（不启动容器）
+# Rebuild Docker images only (without starting containers)
 docker-build:
 	docker compose build
 
-# 查看运行状态
+# Check running status
 docker-ps:
 	docker compose ps
