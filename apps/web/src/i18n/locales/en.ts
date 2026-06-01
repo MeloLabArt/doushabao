@@ -50,6 +50,10 @@ const en = {
     hideEditorPanel: 'Hide editor panel',
     showEditorPanel: 'Show editor panel',
     settings: 'Settings',
+    minimize: 'Minimize',
+    maximize: 'Maximize',
+    restore: 'Restore',
+    close: 'Close',
   },
   home: {
     mainWorkspace: 'Main workspace',

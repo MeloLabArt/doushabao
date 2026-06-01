@@ -21,6 +21,31 @@
 - **自动刷新** — 构建完成后浏览器立即自动刷新（无需手动操作）
 - **后端热重启** — uvicorn `--reload`，后端代码变更自动重启
 
+## 桌面应用架构
+
+`make build-desktop` 将 Web 应用打包为跨平台桌面安装包：
+
+```
+┌─────────────────────────────────────────┐
+│  Electron 窗口 (BrowserWindow)           │
+│  ┌───────────────────────────────────┐  │
+│  │   Vue 前端 (apps/web/dist/)       │  │
+│  │   ← 由 API 的 StaticFiles 服务     │  │
+│  └──────────────┬────────────────────┘  │
+│                 │ HTTP 127.0.0.1:18xxx  │
+│  ┌──────────────▼────────────────────┐  │
+│  │   FastAPI 后端 (PyInstaller 打包)  │  │
+│  │   apps/api/src/ → 独立可执行文件    │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+- **Electron** (`electron/`) — 窗口管理、进程生命周期、IPC 通信
+- **PyInstaller** — 将 `apps/api/` 打包为独立可执行文件
+- **electron-builder** — 生成 macOS(.dmg) / Windows(.exe) / Linux(.AppImage,.deb) 安装包
+- 后端绑定 `127.0.0.1`，自动查找可用端口（从 18000 开始）
+- 用户配置和数据库存储在系统 userData 目录
+
 ## 常用命令
 
 ```bash
@@ -32,4 +57,21 @@ make serve
 
 # 构建前端（生产部署前执行）
 make build
+
+# 构建桌面应用（当前平台）
+make build-desktop
+
+# 仅打包 Python 后端二进制（不产安装包）
+make build-api
+
+# 构建指定平台
+make build-desktop-mac     # macOS DMG
+make build-desktop-win     # Windows NSIS
+make build-desktop-linux   # Linux AppImage/deb
+make build-desktop-all     # 全部平台
 ```
+
+## 图标
+
+桌面图标直接复用项目 logo（`apps/web/src/assets/images/logo.png`），构建时自动复制到 `electron/assets/icon.png`。
+运行 `python scripts/generate-icons.py` 可额外生成 `.icns` 和 `.ico` 格式（需安装 Pillow），但 electron-builder 可直接使用 PNG 自动转换。

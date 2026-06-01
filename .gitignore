@@ -54,3 +54,12 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Desktop build (Electron)
+/dist-desktop/
+electron/node_modules/
+electron/build-staging/
+
+# PyInstaller
+apps/api/dist/
+apps/api/build/

@@ -52,6 +52,10 @@ const zhHant: MessageSchema = {
     hideEditorPanel: '隱藏編輯面板',
     showEditorPanel: '顯示編輯面板',
     settings: '設定',
+    minimize: '最小化',
+    maximize: '最大化',
+    restore: '還原',
+    close: '關閉',
   },
   home: {
     mainWorkspace: '主工作區',

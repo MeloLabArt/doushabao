@@ -1,4 +1,4 @@
-.PHONY: serve setup build docker-up docker-up-d docker-down docker-logs docker-build docker-ps
+.PHONY: serve setup build build-api build-desktop build-desktop-mac build-desktop-win build-desktop-linux docker-up docker-up-d docker-down docker-logs docker-build docker-ps
 
 # 一键安装前后端所有依赖
 setup:
@@ -13,6 +13,32 @@ serve:
 build:
 	@python scripts/banner.py
 	cd apps/web && pnpm build
+
+# ── 桌面应用构建 ─────────────────────────────────────────────────
+
+# 仅打包 Python 后端为独立可执行文件（用于桌面应用）
+build-api:
+	python scripts/build-desktop.py --skip-frontend --skip-electron
+
+# 构建桌面应用（当前平台）
+build-desktop:
+	python scripts/build-desktop.py
+
+# 构建桌面应用（macOS DMG）
+build-desktop-mac:
+	python scripts/build-desktop.py --mac
+
+# 构建桌面应用（Windows NSIS）
+build-desktop-win:
+	python scripts/build-desktop.py --win
+
+# 构建桌面应用（Linux AppImage/deb）
+build-desktop-linux:
+	python scripts/build-desktop.py --linux
+
+# 构建所有平台桌面安装包
+build-desktop-all:
+	python scripts/build-desktop.py --all
 
 # ── Docker 一键部署 ─────────────────────────────────────────────
 

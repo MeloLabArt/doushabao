@@ -52,6 +52,10 @@ const zhCN: MessageSchema = {
     hideEditorPanel: "隐藏编辑面板",
     showEditorPanel: "显示编辑面板",
     settings: "设置",
+    minimize: "最小化",
+    maximize: "最大化",
+    restore: "还原",
+    close: "关闭",
   },
   home: {
     mainWorkspace: "主工作区",

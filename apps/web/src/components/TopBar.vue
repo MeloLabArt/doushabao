@@ -56,6 +56,39 @@ const undoShortcutLabel = isMac ? '⌘Z' : 'Ctrl+Z'
 const leftSidebarShortcutLabel = isMac ? '⌘B' : 'Ctrl+B'
 const rightSidebarShortcutLabel = isMac ? '⌘⇧B' : 'Ctrl+Shift+B'
 
+// ── Desktop (Electron) detection ───────────────────────────────
+const isDesktop = ref(false)
+const desktopPlatform = ref('')
+const isMacDesktop = computed(() => isDesktop.value && /darwin/i.test(desktopPlatform.value))
+const isWinLinuxDesktop = computed(() => isDesktop.value && !/darwin/i.test(desktopPlatform.value))
+const isWindowMaximized = ref(false)
+
+function setupDesktopEnv() {
+  if (!window.electronAPI) return
+  isDesktop.value = true
+  window.electronAPI.getAppInfo().then((info) => {
+    desktopPlatform.value = info.platform
+  })
+  window.electronAPI.isMaximized().then((max) => {
+    isWindowMaximized.value = max
+  })
+  window.electronAPI.onMaximizedChanged((maximized) => {
+    isWindowMaximized.value = maximized
+  })
+}
+
+function minimizeWindow() {
+  window.electronAPI?.minimizeWindow()
+}
+
+function maximizeWindow() {
+  window.electronAPI?.maximizeWindow()
+}
+
+function closeWindow() {
+  window.electronAPI?.closeWindow()
+}
+
 const shortcutBadgeClass =
   'rounded border border-app-border bg-app px-1 py-0.5 text-[10px] font-normal leading-none text-app-subtle'
 
@@ -151,15 +184,22 @@ function onDocumentPointerDown(event: PointerEvent) {
   }
 }
 
-onMounted(() => document.addEventListener('pointerdown', onDocumentPointerDown))
+onMounted(() => {
+  document.addEventListener('pointerdown', onDocumentPointerDown)
+  setupDesktopEnv()
+})
 onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerDown))
 </script>
 
 <template>
   <header
-    class="relative z-50 flex h-10 shrink-0 items-center justify-between border-b border-app-border bg-app/95 px-3 backdrop-blur-sm"
+    class="relative z-50 flex h-10 shrink-0 items-center justify-between border-b border-app-border bg-app/95 px-3 backdrop-blur-sm select-none"
+    :class="{
+      'app-drag': isDesktop,
+      'pl-20': isMacDesktop,
+    }"
   >
-    <nav class="flex min-w-0 items-center gap-3">
+    <nav class="flex min-w-0 items-center gap-3" :class="{ 'app-no-drag': isDesktop }">
       <div class="flex shrink-0 items-center gap-2">
         <img
           :src="logoUrl"
@@ -334,7 +374,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
       </div>
     </nav>
 
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-1" :class="{ 'app-no-drag': isDesktop }">
       <button
         type="button"
         class="inline-flex h-8 items-center gap-1 rounded-md px-1.5 text-app-muted transition-colors hover:bg-app-accent hover:text-app-foreground"
@@ -390,6 +430,69 @@ onUnmounted(() => document.removeEventListener('pointerdown', onDocumentPointerD
       >
         <Settings :size="16" :stroke-width="1.75" />
       </button>
+
+      <!-- ── Window controls (Windows / Linux only) ── -->
+      <template v-if="isWinLinuxDesktop">
+        <div class="mx-0.5 h-5 w-px bg-app-border/60" />
+        <div class="-mr-3 flex h-10 items-stretch">
+          <button
+            type="button"
+            class="win-ctrl-btn group flex w-11 items-center justify-center text-app-muted transition-colors hover:bg-app-accent"
+            :aria-label="t('menu.minimize')"
+            @click="minimizeWindow"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2 6h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="win-ctrl-btn group flex w-11 items-center justify-center text-app-muted transition-colors hover:bg-app-accent"
+            :aria-label="isWindowMaximized ? t('menu.restore') : t('menu.maximize')"
+            @click="maximizeWindow"
+          >
+            <svg
+              v-if="isWindowMaximized"
+              width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+            >
+              <rect x="2.5" y="4.5" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.1" />
+              <path d="M4.5 4.5V3.5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-1" stroke="currentColor" stroke-width="1.1" />
+            </svg>
+            <svg
+              v-else
+              width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+            >
+              <rect x="2" y="2" width="8" height="8" rx="1.2" stroke="currentColor" stroke-width="1.1" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="win-ctrl-btn group flex w-11 items-center justify-center text-app-muted transition-colors hover:bg-red-500 hover:text-white"
+            :aria-label="t('menu.close')"
+            @click="closeWindow"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </template>
     </div>
   </header>
 </template>
+
+<style scoped>
+.app-drag {
+  -webkit-app-region: drag;
+}
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+.app-no-drag::before,
+.app-no-drag::after {
+  -webkit-app-region: no-drag;
+}
+.win-ctrl-btn {
+  -webkit-app-region: no-drag;
+}
+</style>

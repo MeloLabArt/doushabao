@@ -52,6 +52,10 @@ const ko: MessageSchema = {
     hideEditorPanel: '편집 패널 숨기기',
     showEditorPanel: '편집 패널 표시',
     settings: '설정',
+    minimize: '최소화',
+    maximize: '최대화',
+    restore: '복원',
+    close: '닫기',
   },
   home: {
     mainWorkspace: '메인 작업 공간',

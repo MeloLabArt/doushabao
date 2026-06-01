@@ -52,6 +52,10 @@ const ja: MessageSchema = {
     hideEditorPanel: '編集パネルを非表示',
     showEditorPanel: '編集パネルを表示',
     settings: '設定',
+    minimize: '最小化',
+    maximize: '最大化',
+    restore: '復元',
+    close: '閉じる',
   },
   home: {
     mainWorkspace: 'メインワークスペース',

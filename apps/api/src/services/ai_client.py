@@ -9,11 +9,38 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import litellm
-
 from ..config import settings
 
 logger = logging.getLogger(__name__)
+
+# ── Lazy litellm import ───────────────────────────────────────
+# litellm triggers heavy sub-imports (e.g. compression) that can crash
+# in PyInstaller builds.  We defer the import until first actual use.
+_litellm: Any = None
+
+
+def _get_litellm():
+    global _litellm
+    if _litellm is None:
+        try:
+            import litellm  # type: ignore[import-untyped]
+
+            _litellm = litellm
+            # Suppress noisy startup warnings
+            litellm.set_verbose = False  # pyright: ignore[reportAttributeAccessIssue]
+            logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+        except ImportError:
+            raise RuntimeError(
+                "litellm is not installed or failed to import. "
+                "Run: uv sync --directory apps/api"
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to initialize litellm: {exc}. "
+                "The app will start but AI features will be unavailable."
+            ) from exc
+    return _litellm
+
 
 # ── Provider detection ─────────────────────────────────────────
 
@@ -101,6 +128,7 @@ async def litellm_completion(
     messages: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """Text completion via litellm (for analysis phase)."""
+    litellm = _get_litellm()
     params = _build_litellm_params(host, api_key, model)
     response = await litellm.acompletion(
         **params,
@@ -127,6 +155,7 @@ async def litellm_image_completion(
 
     Tries with modalities=["image", "text"] first; falls back to no modalities.
     """
+    litellm = _get_litellm()
     params = _build_litellm_params(host, api_key, model)
     litellm_params = {
         **params,
