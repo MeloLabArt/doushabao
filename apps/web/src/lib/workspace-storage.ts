@@ -227,6 +227,7 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
         title: cachedWorkspace.title,
         updatedAt: cachedWorkspace.updatedAt,
         hasSourceImage: cachedWorkspace.hasSourceImage,
+        workspaceType: cachedWorkspace.workspaceType,
       })
     } else {
       await createBackendWorkspace({
@@ -235,6 +236,7 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
         createdAt: cachedWorkspace.createdAt,
         updatedAt: cachedWorkspace.updatedAt,
         hasSourceImage: cachedWorkspace.hasSourceImage ?? false,
+        workspaceType: cachedWorkspace.workspaceType ?? 'image',
       })
     }
   } catch {
@@ -275,6 +277,7 @@ export async function syncWorkspacesFromBackend(): Promise<number> {
           createdAt: w.createdAt,
           updatedAt: w.updatedAt,
           hasSourceImage: w.hasSourceImage,
+          workspaceType: w.workspaceType,
         }
         count++
       }

@@ -10,9 +10,12 @@ from sqlmodel import Session, select
 from ..models.settings import (
     WorkspaceRecord,
     delete_workspace_image_file,
+    delete_workspace_video_file,
     get_session,
     load_workspace_image_file,
+    load_workspace_video_file,
     save_workspace_image_file,
+    save_workspace_video_file,
 )
 
 logger = logging.getLogger(__name__)
@@ -20,7 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/workspaces", tags=["workspaces"])
 
 
-# ── Schemas ────────────────────────────────────────────────────
+# ── Images Schemas ─────────────────────────────────────────────────
 
 
 class WorkspaceOut(BaseModel):
@@ -29,6 +32,7 @@ class WorkspaceOut(BaseModel):
     createdAt: int
     updatedAt: int
     hasSourceImage: bool
+    workspaceType: str = "image"
 
 
 class WorkspaceCreate(BaseModel):
@@ -37,12 +41,14 @@ class WorkspaceCreate(BaseModel):
     createdAt: int
     updatedAt: int
     hasSourceImage: bool = False
+    workspaceType: str = "image"
 
 
 class WorkspaceUpdate(BaseModel):
     title: str | None = None
     updatedAt: int | None = None
     hasSourceImage: bool | None = None
+    workspaceType: str | None = None
 
 
 class WorkspaceList(BaseModel):
@@ -52,6 +58,10 @@ class WorkspaceList(BaseModel):
 class WorkspaceImageResponse(BaseModel):
     image: str | None = None
 
+# ── Video Schemas ─────────────────────────────────────────────────
+
+class WorkspaceVideoResponse(BaseModel):
+    video: str | None = None
 
 # ── Helpers ────────────────────────────────────────────────────
 
@@ -63,6 +73,7 @@ def _to_out(record: WorkspaceRecord) -> WorkspaceOut:
         createdAt=record.created_at,
         updatedAt=record.updated_at,
         hasSourceImage=record.has_source_image,
+        workspaceType=record.workspace_type,
     )
 
 
@@ -100,6 +111,7 @@ def create_workspace(body: WorkspaceCreate, db: Session = Depends(get_db)):
         created_at=body.createdAt,
         updated_at=body.updatedAt,
         has_source_image=body.hasSourceImage,
+        workspace_type=body.workspaceType,
     )
     db.add(record)
     db.commit()
@@ -124,6 +136,8 @@ def update_workspace(
         record.updated_at = body.updatedAt
     if body.hasSourceImage is not None:
         record.has_source_image = body.hasSourceImage
+    if body.workspaceType is not None:
+        record.workspace_type = body.workspaceType
 
     db.add(record)
     db.commit()
@@ -138,6 +152,7 @@ def delete_workspace(workspace_id: str, db: Session = Depends(get_db)):
         db.delete(record)
         db.commit()
     delete_workspace_image_file(workspace_id)
+    delete_workspace_video_file(workspace_id)
     return {"ok": True}
 
 
@@ -160,4 +175,26 @@ def save_workspace_image(workspace_id: str, body: dict[str, Any]):
 @router.delete("/{workspace_id}/image")
 def delete_workspace_image(workspace_id: str):
     delete_workspace_image_file(workspace_id)
+    return {"ok": True}
+
+
+# ── Video routes ───────────────────────────────────────────────
+
+
+@router.get("/{workspace_id}/video", response_model=WorkspaceVideoResponse)
+def get_workspace_video(workspace_id: str):
+    video = load_workspace_video_file(workspace_id)
+    return WorkspaceVideoResponse(video=video)
+
+
+@router.put("/{workspace_id}/video")
+def save_workspace_video(workspace_id: str, body: dict[str, Any]):
+    data_url = body.get("video")
+    save_workspace_video_file(workspace_id, data_url)
+    return {"ok": True}
+
+
+@router.delete("/{workspace_id}/video")
+def delete_workspace_video(workspace_id: str):
+    delete_workspace_video_file(workspace_id)
     return {"ok": True}

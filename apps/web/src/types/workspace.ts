@@ -5,6 +5,7 @@ export type Workspace = {
   updatedAt: number
   sourceImage?: string
   hasSourceImage?: boolean
+  workspaceType?: string
 }
 
 export type WorkspaceTabItem = {
