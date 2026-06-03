@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/workspaces", tags=["workspaces"])
 
 
-# ── Images Schemas ─────────────────────────────────────────────────
+# ── Schemas ─────────────────────────────────────────────────
 
 
 class WorkspaceOut(BaseModel):
