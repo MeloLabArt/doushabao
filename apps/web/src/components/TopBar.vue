@@ -10,7 +10,8 @@ const { t } = useI18n()
 const editMenuItems = computed(() => [{ id: 'undo' as const, label: t('menu.undo'), shortcut: true }])
 
 const fileMenuItems = computed(() => [
-  { id: 'new-workspace' as const, label: t('menu.newWorkspace'), dividerAfter: true },
+  { id: 'new-workspace' as const, label: t('menu.newWorkspace') },
+  { id: 'new-video-workspace' as const, label: t('menu.newVideoWorkspace'), dividerAfter: true },
   { id: 'open' as const, label: t('common.open') },
   { id: 'save' as const, label: t('menu.save'), shortcut: 'save' as const },
   { id: 'export-image' as const, label: t('menu.exportImage'), shortcut: 'export' as const },

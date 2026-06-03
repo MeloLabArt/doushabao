@@ -11,7 +11,7 @@ import SavedProjectSidebar from '@/components/SavedProjectSidebar.vue'
 import WorkspaceRightSidebar from '@/components/WorkspaceRightSidebar.vue'
 import TabBar from '@/components/TabBar.vue'
 import TopBar from '@/components/TopBar.vue'
-import { openNewWorkspace, openNewWorkspaceWithImage } from '@/lib/open-new-workspace'
+import { openNewWorkspace, openNewVideoWorkspace, openNewWorkspaceWithImage } from '@/lib/open-new-workspace'
 import { pickImageFile, readImageFileAsDataUrl } from '@/lib/read-image-file'
 import { handleAppShortcut } from '@/lib/app-shortcuts'
 import { canExportWorkspace, exportWorkspaceImage } from '@/lib/export-workspace-image'
@@ -211,9 +211,14 @@ async function handleOpenImageInput(event: Event): Promise<void> {
   openNewWorkspaceWithImage(router, dataUrl)
 }
 
-function handleFileAction(action: 'new-workspace' | 'open' | 'save' | 'export-image') {
+function handleFileAction(action: 'new-workspace' | 'new-video-workspace' | 'open' | 'save' | 'export-image') {
   if (action === 'new-workspace') {
     openNewWorkspace(router)
+    return
+  }
+
+  if (action === 'new-video-workspace') {
+    openNewVideoWorkspace(router)
     return
   }
 

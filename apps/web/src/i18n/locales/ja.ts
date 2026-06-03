@@ -42,6 +42,7 @@ const ja: MessageSchema = {
     view: '表示',
     edit: '編集',
     newWorkspace: '新規ワークスペース',
+    newVideoWorkspace: '新規動画プロジェクト',
     save: '保存',
     exportImage: '画像を書き出し',
     undo: '変更を元に戻す',

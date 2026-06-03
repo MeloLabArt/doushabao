@@ -42,6 +42,7 @@ const zhCN: MessageSchema = {
     view: "视图",
     edit: "编辑",
     newWorkspace: "新建工作区",
+    newVideoWorkspace: "新建视频项目",
     save: "保存",
     exportImage: "导出图片",
     undo: "撤回更改",

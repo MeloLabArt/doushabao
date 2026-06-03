@@ -40,6 +40,7 @@ const en = {
     view: 'View',
     edit: 'Edit',
     newWorkspace: 'New workspace',
+    newVideoWorkspace: 'New video project',
     save: 'Save',
     exportImage: 'Export image',
     undo: 'Undo changes',

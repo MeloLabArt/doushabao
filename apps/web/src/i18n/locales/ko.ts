@@ -42,6 +42,7 @@ const ko: MessageSchema = {
     view: '보기',
     edit: '편집',
     newWorkspace: '새 작업 공간',
+    newVideoWorkspace: '새 비디오 프로젝트',
     save: '저장',
     exportImage: '이미지 내보내기',
     undo: '변경 실행 취소',

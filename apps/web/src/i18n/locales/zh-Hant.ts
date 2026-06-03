@@ -42,6 +42,7 @@ const zhHant: MessageSchema = {
     view: '檢視',
     edit: '編輯',
     newWorkspace: '新建工作區',
+    newVideoWorkspace: '新建影片專案',
     save: '儲存',
     exportImage: '匯出圖片',
     undo: '復原變更',
