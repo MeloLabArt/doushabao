@@ -8,6 +8,7 @@ import RouteTransition from '@/components/RouteTransition.vue'
 import CloseUnsavedWorkspaceDialog from '@/components/CloseUnsavedWorkspaceDialog.vue'
 import SaveWorkspaceDialog from '@/components/SaveWorkspaceDialog.vue'
 import SavedProjectSidebar from '@/components/SavedProjectSidebar.vue'
+import VideoDimensionPicker from '@/components/VideoDimensionPicker.vue'
 import WorkspaceRightSidebar from '@/components/WorkspaceRightSidebar.vue'
 import TabBar from '@/components/TabBar.vue'
 import TopBar from '@/components/TopBar.vue'
@@ -57,6 +58,7 @@ const closeTargetTabId = ref<string | null>(null)
 const sidebarVisible = ref(true)
 const rightSidebarVisible = ref(true)
 const openImageInputRef = ref<HTMLInputElement | null>(null)
+const videoDimensionDialogOpen = ref(false)
 
 const appTabs = computed(() =>
   openTabs.value.flatMap((id) => {
@@ -218,7 +220,7 @@ function handleFileAction(action: 'new-workspace' | 'new-video-workspace' | 'ope
   }
 
   if (action === 'new-video-workspace') {
-    openNewVideoWorkspace(router)
+    videoDimensionDialogOpen.value = true
     return
   }
 
@@ -516,6 +518,15 @@ async function handleDeleteProject(workspaceId: string): Promise<void> {
     navigateAfterCloseTab(nextTabId)
   }
 }
+
+function handleVideoDimensionConfirm(width: number, height: number): void {
+  videoDimensionDialogOpen.value = false
+  openNewVideoWorkspace(router, width, height)
+}
+
+function handleVideoDimensionCancel(): void {
+  videoDimensionDialogOpen.value = false
+}
 </script>
 
 <template>
@@ -572,6 +583,12 @@ async function handleDeleteProject(workspaceId: string): Promise<void> {
       @save="saveCloseUnsavedWorkspace"
       @discard="discardCloseUnsavedWorkspace"
       @cancel="cancelCloseUnsavedWorkspace"
+    />
+
+    <VideoDimensionPicker
+      :open="videoDimensionDialogOpen"
+      @confirm="handleVideoDimensionConfirm"
+      @cancel="handleVideoDimensionCancel"
     />
 
     <input

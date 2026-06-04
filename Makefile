@@ -5,7 +5,8 @@ setup:
 	uv sync --directory apps/api && pnpm install
 
 # Start the integrated dev server (http://localhost:8000)
-# vite build --watch rebuilds frontend automatically; refresh browser to see changes
+# Vite build --watch rebuilds frontend on changes (no HMR, just refresh)
+# Backend serves both API and frontend SPA on a single port
 serve:
 	python scripts/serve.py
 
@@ -13,6 +14,10 @@ serve:
 build:
 	@python scripts/banner.py
 	cd apps/web && pnpm build
+
+# Start the backend dev server with hot-reload only (no frontend build)
+serve-api:
+	cd apps/api && uv run python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 # ── Desktop App Build ────────────────────────────────────────────
 

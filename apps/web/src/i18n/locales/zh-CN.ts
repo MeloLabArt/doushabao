@@ -72,6 +72,17 @@ const zhCN: MessageSchema = {
     editing: "正在编辑",
     fitCanvas: "适应画布",
   },
+  videoDimension: {
+    blankCanvas: "空白画布",
+    title: "视频尺寸",
+    description: "选择视频项目的画布尺寸。",
+    presets: "预设",
+    width: "宽",
+    height: "高",
+    px: "像素",
+    create: "创建项目",
+    custom: "自定义",
+  },
   dropzone: {
     dragHere: "拖拽图片到此处",
     orClick: "或点击选择图片上传",

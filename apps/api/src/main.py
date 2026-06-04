@@ -7,12 +7,10 @@ import sys
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.types import Receive, Scope, Send
 
 from .config import settings as app_settings
-from .livereload import LiveReload, inject_reload_script
 from .models.settings import init_db
 from .routers import agent, editor, health, settings as settings_router, workspaces
 
@@ -35,10 +33,9 @@ FRONTEND_DIST = os.environ.get("DOUSHABAO_FRONTEND_DIR") or (
     )
 )
 
-_livereload: LiveReload | None = None
-
 
 # ═════════════════════════════════════════════════════════════════
+
 #  Custom title bar (desktop mode)
 # ═════════════════════════════════════════════════════════════════
 
@@ -147,21 +144,8 @@ def inject_titlebar(body: str) -> str:
 #  App factory
 # ═════════════════════════════════════════════════════════════════
 
-
-class DevStaticFiles(StaticFiles):
-    """StaticFiles with no-cache headers."""
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        original_send = send
-
-        async def send_dev(message: dict) -> None:  # pyright: ignore[reportInvalidTypeForm]
-            if message["type"] == "http.response.start":
-                headers = dict(message.get("headers", []))
-                headers[b"cache-control"] = b"no-cache, no-store, must-revalidate"
-                message["headers"] = list(headers.items())
-            await original_send(message)
-
-        await super().__call__(scope, receive, send_dev)
+# ── API paths that should NOT be caught by the SPA fallback ─────
+_SPA_EXCLUDED_PREFIXES = ("/api/", "/health", "/docs", "/openapi.json", "/redoc")
 
 
 def _create_app() -> FastAPI:
@@ -185,61 +169,41 @@ def _create_app() -> FastAPI:
     app.include_router(settings_router.router)
     app.include_router(workspaces.router)
 
-    if DEV_MODE and os.path.isdir(FRONTEND_DIST):
-        global _livereload
-        _livereload = LiveReload(FRONTEND_DIST)
+    if os.path.isdir(FRONTEND_DIST):
+        # ── Desktop mode: inject custom title bar ─────────────
+        if DESKTOP_MODE:
 
-        # SSE endpoint — registered before static mount
-        @app.get("/__reload")
-        async def reload_sse():
-            from fastapi.responses import StreamingResponse
+            @app.middleware("http")
+            async def inject_desktop_titlebar(request, call_next):
+                response = await call_next(request)
+                if isinstance(response, HTMLResponse):
+                    body = response.body.decode("utf-8")
+                    if "<body" in body:
+                        return HTMLResponse(
+                            inject_titlebar(body),
+                            status_code=response.status_code,
+                            headers=dict(response.headers),
+                        )
+                return response
 
-            assert _livereload is not None
-            return StreamingResponse(
-                _livereload.sse_generator(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                },
-            )
+        app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True))
+        logger.info("Serving frontend from %s", FRONTEND_DIST)
 
-        # Middleware to inject reload script into HTML responses
+        # ── SPA fallback: serve index.html for non-API 404s ────
         @app.middleware("http")
-        async def inject_reload(request, call_next):
+        async def spa_fallback(request, call_next):
             response = await call_next(request)
-            if isinstance(response, HTMLResponse):
-                body = response.body.decode("utf-8")
-                if "</body>" in body:
-                    return HTMLResponse(
-                        inject_reload_script(body),
-                        status_code=response.status_code,
-                        headers=dict(response.headers),
-                    )
+            if response.status_code == 404 and not request.url.path.startswith(
+                _SPA_EXCLUDED_PREFIXES,
+            ):
+                index_path = os.path.join(FRONTEND_DIST, "index.html")
+                if os.path.isfile(index_path):
+                    return FileResponse(index_path, media_type="text/html")
             return response
 
-        app.mount("/", DevStaticFiles(directory=FRONTEND_DIST, html=True))
-        logger.info("Dev mode: serving from %s with live-reload", FRONTEND_DIST)
     else:
-        if os.path.isdir(FRONTEND_DIST):
-            # ── Desktop mode: inject custom title bar ─────────────
-            if DESKTOP_MODE:
-
-                @app.middleware("http")
-                async def inject_desktop_titlebar(request, call_next):
-                    response = await call_next(request)
-                    if isinstance(response, HTMLResponse):
-                        body = response.body.decode("utf-8")
-                        if "<body" in body:
-                            return HTMLResponse(
-                                inject_titlebar(body),
-                                status_code=response.status_code,
-                                headers=dict(response.headers),
-                            )
-                    return response
-
-            app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True))
-            logger.info("Serving frontend from %s", FRONTEND_DIST)
+        if DEV_MODE:
+            logger.warning("Dev mode: frontend dist not found — frontend not available")
         else:
             logger.info("No frontend build found — API-only mode")
 
@@ -247,8 +211,6 @@ def _create_app() -> FastAPI:
     async def startup():
         logger.info("Doushabao API starting up...")
         init_db()
-        if _livereload is not None:
-            await _livereload.start()
 
     @app.on_event("shutdown")
     async def shutdown():

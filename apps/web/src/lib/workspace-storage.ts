@@ -228,6 +228,8 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
         updatedAt: cachedWorkspace.updatedAt,
         hasSourceImage: cachedWorkspace.hasSourceImage,
         workspaceType: cachedWorkspace.workspaceType,
+        videoWidth: cachedWorkspace.videoWidth,
+        videoHeight: cachedWorkspace.videoHeight,
       })
     } else {
       await createBackendWorkspace({
@@ -237,6 +239,8 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
         updatedAt: cachedWorkspace.updatedAt,
         hasSourceImage: cachedWorkspace.hasSourceImage ?? false,
         workspaceType: cachedWorkspace.workspaceType ?? 'image',
+        videoWidth: cachedWorkspace.videoWidth ?? 1080,
+        videoHeight: cachedWorkspace.videoHeight ?? 1920,
       })
     }
   } catch {
@@ -278,6 +282,8 @@ export async function syncWorkspacesFromBackend(): Promise<number> {
           updatedAt: w.updatedAt,
           hasSourceImage: w.hasSourceImage,
           workspaceType: w.workspaceType,
+          videoWidth: w.videoWidth,
+          videoHeight: w.videoHeight,
         }
         count++
       }

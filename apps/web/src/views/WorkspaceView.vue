@@ -61,6 +61,21 @@ const isEditing = computed(() => {
   return isWorkspaceEditing(props.workspaceId)
 })
 
+const isVideoWorkspace = computed(() => workspaceRecord.value?.workspaceType === 'video')
+
+const videoAspectRatio = computed(() => {
+  const w = workspaceRecord.value?.videoWidth
+  const h = workspaceRecord.value?.videoHeight
+  if (!w || !h) return ''
+  let a = w
+  let b = h
+  while (b) {
+    ;[a, b] = [b, a % b]
+  }
+  const d = a
+  return `${w / d}:${h / d}`
+})
+
 const editMode = computed(() => {
   workspaceUiRevision.value
   return getWorkspaceEditMode(props.workspaceId)
@@ -173,12 +188,49 @@ defineExpose({
     <p v-if="isLoadingImage" class="flex flex-1 items-center justify-center text-sm text-app-muted">
       {{ t('workspace.loadingImage') }}
     </p>
+    <!-- video workspace — blank canvas -->
+    <div
+      v-else-if="workspaceRecord.workspaceType === 'video' && !displaySourceImage"
+      class="flex min-h-0 flex-1 flex-col"
+    >
+      <div class="app-workspace-toolbar">
+        <input
+          ref="replaceInputRef"
+          type="file"
+          accept="image/*"
+          class="hidden"
+          @change="handleReplaceInput"
+        />
+        <button
+          type="button"
+          class="rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
+          @click="openReplacePicker"
+        >
+          {{ t('workspace.replaceImage') }}
+        </button>
+      </div>
+      <div class="flex flex-1 items-center justify-center p-6">
+        <div
+          class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-app-border bg-app-surface/50 p-10"
+        >
+          <p class="text-sm font-medium text-app-muted">
+            {{ workspaceRecord.videoWidth }} × {{ workspaceRecord.videoHeight }}
+          </p>
+          <p class="mt-0.5 text-xs text-app-subtle">{{ videoAspectRatio }}</p>
+          <p class="mt-2 text-xs text-app-subtle">
+            {{ t('videoDimension.blankCanvas') }}
+          </p>
+        </div>
+      </div>
+    </div>
+    <!-- image workspace — no image yet -->
     <div
       v-else-if="!hasImage"
       class="flex flex-1 items-center justify-center p-6"
     >
       <ImageDropzone @select="handleImageSelect" />
     </div>
+    <!-- image workspace — has image -->
     <div v-else-if="displaySourceImage" class="flex min-h-0 flex-1 flex-col">
       <div class="app-workspace-toolbar">
         <input

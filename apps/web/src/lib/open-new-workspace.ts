@@ -13,13 +13,15 @@ export function openNewWorkspace(router: Router): void {
   })
 }
 
-export function openNewVideoWorkspace(router: Router): void {
+export function openNewVideoWorkspace(router: Router, videoWidth: number, videoHeight: number): void {
   const workspaceId = createWorkspaceId()
   const workspace = createDraftWorkspace(workspaceId)
 
   stageWorkspaceChanges({
     ...workspace,
     workspaceType: 'video',
+    videoWidth,
+    videoHeight,
   })
 
   void router.push({

@@ -72,6 +72,17 @@ const ko: MessageSchema = {
     editing: '편집 중',
     fitCanvas: '캔버스에 맞추기',
   },
+  videoDimension: {
+    blankCanvas: '빈 캔버스',
+    title: '비디오 크기',
+    description: '비디오 프로젝트의 캔버스 크기를 선택하세요.',
+    presets: '프리셋',
+    width: '너비',
+    height: '높이',
+    px: 'px',
+    create: '프로젝트 만들기',
+    custom: '사용자 정의',
+  },
   dropzone: {
     dragHere: '여기에 이미지를 드래그',
     orClick: '또는 클릭하여 업로드',

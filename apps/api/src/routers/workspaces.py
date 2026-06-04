@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import desc
 from sqlmodel import Session, select
 
 from ..models.settings import (
@@ -33,6 +34,8 @@ class WorkspaceOut(BaseModel):
     updatedAt: int
     hasSourceImage: bool
     workspaceType: str = "image"
+    videoWidth: int = 1080
+    videoHeight: int = 1920
 
 
 class WorkspaceCreate(BaseModel):
@@ -42,6 +45,8 @@ class WorkspaceCreate(BaseModel):
     updatedAt: int
     hasSourceImage: bool = False
     workspaceType: str = "image"
+    videoWidth: int = 1080
+    videoHeight: int = 1920
 
 
 class WorkspaceUpdate(BaseModel):
@@ -49,6 +54,8 @@ class WorkspaceUpdate(BaseModel):
     updatedAt: int | None = None
     hasSourceImage: bool | None = None
     workspaceType: str | None = None
+    videoWidth: int | None = None
+    videoHeight: int | None = None
 
 
 class WorkspaceList(BaseModel):
@@ -74,6 +81,8 @@ def _to_out(record: WorkspaceRecord) -> WorkspaceOut:
         updatedAt=record.updated_at,
         hasSourceImage=record.has_source_image,
         workspaceType=record.workspace_type,
+        videoWidth=record.video_width,
+        videoHeight=record.video_height,
     )
 
 
@@ -90,7 +99,7 @@ def get_db():
 
 @router.get("", response_model=WorkspaceList)
 def list_workspaces(db: Session = Depends(get_db)):
-    records = db.exec(select(WorkspaceRecord).order_by(WorkspaceRecord.updated_at.desc())).all()
+    records = db.exec(select(WorkspaceRecord).order_by(desc(WorkspaceRecord.updated_at))).all()  # pyright: ignore[reportArgumentType]
     return WorkspaceList(workspaces=[_to_out(r) for r in records])
 
 
@@ -112,6 +121,8 @@ def create_workspace(body: WorkspaceCreate, db: Session = Depends(get_db)):
         updated_at=body.updatedAt,
         has_source_image=body.hasSourceImage,
         workspace_type=body.workspaceType,
+        video_width=body.videoWidth,
+        video_height=body.videoHeight,
     )
     db.add(record)
     db.commit()
@@ -138,6 +149,10 @@ def update_workspace(
         record.has_source_image = body.hasSourceImage
     if body.workspaceType is not None:
         record.workspace_type = body.workspaceType
+    if body.videoWidth is not None:
+        record.video_width = body.videoWidth
+    if body.videoHeight is not None:
+        record.video_height = body.videoHeight
 
     db.add(record)
     db.commit()

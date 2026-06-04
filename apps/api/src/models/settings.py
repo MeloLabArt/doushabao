@@ -42,6 +42,8 @@ class WorkspaceRecord(SQLModel, table=True):
     updated_at: int = Field(default=0)
     has_source_image: bool = Field(default=False)
     workspace_type: str = Field(default="image")
+    video_width: int = Field(default=1080)
+    video_height: int = Field(default=1920)
 
 
 def get_session() -> Session:
@@ -61,6 +63,11 @@ def init_db() -> None:
     if "workspace_type" not in columns:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE workspaces ADD COLUMN workspace_type TEXT NOT NULL DEFAULT 'image'"))
+            conn.commit()
+    if "video_width" not in columns:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE workspaces ADD COLUMN video_width INTEGER NOT NULL DEFAULT 1080"))
+            conn.execute(text("ALTER TABLE workspaces ADD COLUMN video_height INTEGER NOT NULL DEFAULT 1920"))
             conn.commit()
 
     with Session(engine) as session:

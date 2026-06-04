@@ -72,6 +72,17 @@ const zhHant: MessageSchema = {
     editing: '正在編輯',
     fitCanvas: '適應畫布',
   },
+  videoDimension: {
+    blankCanvas: '空白畫布',
+    title: '影片尺寸',
+    description: '選擇影片專案的畫布尺寸。',
+    presets: '預設',
+    width: '寬',
+    height: '高',
+    px: '像素',
+    create: '建立專案',
+    custom: '自訂',
+  },
   dropzone: {
     dragHere: '拖曳圖片到此處',
     orClick: '或點擊選擇圖片上傳',

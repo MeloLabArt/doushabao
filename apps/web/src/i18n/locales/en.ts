@@ -70,6 +70,17 @@ const en = {
     editing: 'Editing',
     fitCanvas: 'Fit to canvas',
   },
+  videoDimension: {
+    blankCanvas: 'Blank canvas',
+    title: 'Video Dimensions',
+    description: 'Choose the dimensions for your video project.',
+    presets: 'Presets',
+    width: 'Width',
+    height: 'Height',
+    px: 'px',
+    create: 'Create Project',
+    custom: 'Custom',
+  },
   dropzone: {
     dragHere: 'Drag an image here',
     orClick: 'or click to upload',

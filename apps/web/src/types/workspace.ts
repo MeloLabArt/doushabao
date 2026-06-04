@@ -6,6 +6,8 @@ export type Workspace = {
   sourceImage?: string
   hasSourceImage?: boolean
   workspaceType?: string
+  videoWidth?: number
+  videoHeight?: number
 }
 
 export type WorkspaceTabItem = {

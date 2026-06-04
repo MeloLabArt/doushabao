@@ -72,6 +72,17 @@ const ja: MessageSchema = {
     editing: '編集中',
     fitCanvas: 'キャンバスに合わせる',
   },
+  videoDimension: {
+    blankCanvas: '空白キャンバス',
+    title: '動画サイズ',
+    description: '動画プロジェクトのキャンバスサイズを選択してください。',
+    presets: 'プリセット',
+    width: '幅',
+    height: '高さ',
+    px: 'px',
+    create: 'プロジェクトを作成',
+    custom: 'カスタム',
+  },
   dropzone: {
     dragHere: 'ここに画像をドラッグ',
     orClick: 'またはクリックしてアップロード',
