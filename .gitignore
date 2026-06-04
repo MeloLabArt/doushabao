@@ -30,6 +30,7 @@ dev-dist
 *.sw?
 *.debug
 workspace_images
+workspace_videos
 *.db
 *.tsbuildinfo
 .env

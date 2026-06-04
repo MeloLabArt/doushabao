@@ -97,6 +97,30 @@ export const workspaceImageRevisions = ref<Record<string, number>>({})
 export const workspaceContentRevision = ref(0)
 export const workspaceEditingIds = ref<Set<string>>(new Set())
 
+// Video object URL registry — tracks blob: URLs per workspace so they can be
+// revoked when a workspace tab is closed (necessary because KeepAlive prevents
+// component onUnmounted from firing on tab close).
+const videoObjectUrls: Record<string, string> = {}
+export const workspaceVideoRevisions = ref(0)
+
+export function setVideoObjectUrl(id: string, url: string): void {
+  const prev = videoObjectUrls[id]
+  if (prev) URL.revokeObjectURL(prev)
+  videoObjectUrls[id] = url
+  workspaceVideoRevisions.value++
+}
+
+export function getVideoObjectUrl(id: string): string | undefined {
+  return videoObjectUrls[id]
+}
+
+export function clearVideoObjectUrl(id: string): void {
+  const url = videoObjectUrls[id]
+  if (url) URL.revokeObjectURL(url)
+  delete videoObjectUrls[id]
+  workspaceVideoRevisions.value++
+}
+
 export function getWorkspaceImageRevision(workspaceId: string): number {
   return workspaceImageRevisions.value[workspaceId] ?? 0
 }
@@ -266,6 +290,7 @@ export function closeTab(id: string): string | null {
     discardWorkspace(id)
     markWorkspaceClean(id)
     clearWorkspaceImageHistory(id)
+    clearVideoObjectUrl(id)
   }
 
   return nextId

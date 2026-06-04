@@ -215,6 +215,7 @@ export interface ApiWorkspace {
   createdAt: number
   updatedAt: number
   hasSourceImage: boolean
+  hasSourceVideo: boolean
   workspaceType: string
   videoWidth: number
   videoHeight: number
@@ -241,7 +242,7 @@ export async function createBackendWorkspace(
 
 export async function updateBackendWorkspace(
   id: string,
-  data: Partial<Pick<ApiWorkspace, 'title' | 'updatedAt' | 'hasSourceImage' | 'workspaceType' | 'videoWidth' | 'videoHeight'>>,
+  data: Partial<Pick<ApiWorkspace, 'title' | 'updatedAt' | 'hasSourceImage' | 'hasSourceVideo' | 'workspaceType' | 'videoWidth' | 'videoHeight'>>,
 ): Promise<ApiWorkspace> {
   return apiJson<ApiWorkspace>('PUT', `/api/v1/workspaces/${encodeURIComponent(id)}`, data)
 }
@@ -277,6 +278,47 @@ export async function deleteBackendWorkspaceImage(id: string): Promise<void> {
   await apiJson<{ ok: boolean }>(
     'DELETE',
     `/api/v1/workspaces/${encodeURIComponent(id)}/image`,
+  )
+}
+
+// Workspace videos — binary upload/download (base64 is too large for video)
+
+export async function getBackendWorkspaceVideoBlob(
+  id: string,
+): Promise<Blob | null> {
+  const response = await fetch(
+    `${API_BASE}/api/v1/workspaces/${encodeURIComponent(id)}/video`,
+    { method: 'GET' },
+  )
+  if (!response.ok) {
+    if (response.status === 404) return null
+    throw new Error(`获取视频失败 (${response.status})`)
+  }
+  return response.blob()
+}
+
+export async function saveBackendWorkspaceVideoFile(
+  id: string,
+  file: Blob,
+): Promise<void> {
+  const form = new FormData()
+  form.append('file', file)
+
+  const response = await fetch(
+    `${API_BASE}/api/v1/workspaces/${encodeURIComponent(id)}/video`,
+    { method: 'PUT', body: form },
+  )
+  if (!response.ok) {
+    throw new Error(`上传视频失败 (${response.status})`)
+  }
+}
+
+export async function deleteBackendWorkspaceVideo(
+  id: string,
+): Promise<void> {
+  await apiJson<{ ok: boolean }>(
+    'DELETE',
+    `/api/v1/workspaces/${encodeURIComponent(id)}/video`,
   )
 }
 

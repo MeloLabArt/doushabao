@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { LoaderCircle } from '@lucide/vue'
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { LoaderCircle, Maximize2, Minimize2, Play, Pause } from '@lucide/vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -14,14 +14,18 @@ import WorkspaceImageViewport from '@/components/WorkspaceImageViewport.vue'
 import { pickImageFile, readImageFileAsDataUrl, pickMediaFile } from '@/lib/read-image-file'
 import {
   addOpenWorkspace,
+  clearVideoObjectUrl,
+  getVideoObjectUrl,
   getWorkspace,
   isWorkspaceEditing,
   openWorkspaces,
   persistWorkspace,
   recordWorkspaceImageHistory,
+  setVideoObjectUrl,
   stageWorkspaceImageChange,
   workspaceContentRevision,
   workspaceEditingIds,
+  workspaceVideoRevisions,
 } from '@/lib/workspace-session'
 import {
   getWorkspaceEditMode,
@@ -29,7 +33,8 @@ import {
   setWorkspaceEditorMarks,
   workspaceUiRevision,
 } from '@/lib/workspace-ui-state'
-import { hydrateWorkspaceImage } from '@/lib/workspace-storage'
+import { hydrateWorkspaceImage, savedWorkspacesRevision } from '@/lib/workspace-storage'
+import { loadWorkspaceVideoBlob, saveWorkspaceVideoFile } from '@/lib/workspace-video-storage'
 import type { Workspace } from '@/types/workspace'
 
 const props = defineProps<{
@@ -43,12 +48,22 @@ const isLoadingImage = ref(false)
 const replaceInputRef = ref<HTMLInputElement | null>(null)
 
 // Video workspace state
-const backgroundVideoUrl = ref<string | null>(null)
+const videoPlayerRef = ref<HTMLVideoElement | null>(null)
 const videoCurrentTime = ref(0)
+const videoDuration = ref(0)
+const isVideoPlaying = ref(false)
+const isLoadingVideo = ref(false)
+
+// Blob URL for <video> display — created from uploaded file or backend download.
+const backgroundVideoUrl = computed(() => {
+  workspaceVideoRevisions.value
+  return getVideoObjectUrl(props.workspaceId) ?? null
+})
 
 const workspaceRecord = computed(() => {
   openWorkspaces.value
   workspaceContentRevision.value
+  savedWorkspacesRevision.value
 
   return getWorkspace(props.workspaceId)
 })
@@ -61,10 +76,8 @@ const hasImage = computed(
   () => Boolean(displaySourceImage.value || workspaceRecord.value?.hasSourceImage),
 )
 
-const hasVideoBackground = computed(() => Boolean(backgroundVideoUrl.value))
-
 const hasBackground = computed(
-  () => displaySourceImage.value || backgroundVideoUrl.value,
+  () => Boolean(displaySourceImage.value || backgroundVideoUrl.value),
 )
 
 const isEditing = computed(() => {
@@ -134,6 +147,31 @@ async function syncHydratedImage(): Promise<void> {
   }
 }
 
+/**
+ * If the workspace has a saved video on the backend, download it and
+ * create a blob URL for <video> display.
+ */
+async function syncHydratedVideo(): Promise<void> {
+  const record = workspaceRecord.value
+
+  if (!record || record.workspaceType !== 'video' || backgroundVideoUrl.value) {
+    return
+  }
+
+  isLoadingVideo.value = true
+
+  try {
+    const blob = await loadWorkspaceVideoBlob(props.workspaceId)
+    if (blob) {
+      setVideoObjectUrl(props.workspaceId, URL.createObjectURL(blob))
+    }
+  } catch {
+    // Backend unavailable — try again later via savedWorkspacesRevision watch
+  } finally {
+    isLoadingVideo.value = false
+  }
+}
+
 async function commitWorkspaceChanges(nextWorkspace: Workspace): Promise<void> {
   await persistWorkspace(nextWorkspace)
   hydratedSourceImage.value = nextWorkspace.sourceImage ?? null
@@ -190,22 +228,29 @@ async function handleReplaceInput(event: Event): Promise<void> {
 
     const videoFile = pickMediaFile(fileArray, 'video')
     if (videoFile) {
-      // Revoke previous video URL
-      if (backgroundVideoUrl.value) {
-        URL.revokeObjectURL(backgroundVideoUrl.value)
-      }
-      backgroundVideoUrl.value = URL.createObjectURL(videoFile)
+      // Create blob URL for <video> display immediately
+      setVideoObjectUrl(props.workspaceId, URL.createObjectURL(videoFile))
       videoCurrentTime.value = 0
+      videoDuration.value = 0
+      isVideoPlaying.value = false
 
-      // Clear any existing source image when using video
+      // Upload video to backend AND persist metadata sequentially
       const record = workspaceRecord.value
       if (record) {
         const nextWorkspace: Workspace = {
           ...record,
+          hasSourceVideo: true,
           sourceImage: undefined,
           hasSourceImage: false,
         }
         stageWorkspaceImageChange(nextWorkspace)
+
+        try {
+          await saveWorkspaceVideoFile(props.workspaceId, videoFile)
+          await persistWorkspace(nextWorkspace)
+        } catch {
+          // Backend unavailable — video plays from local blob URL for this session
+        }
       }
       return
     }
@@ -223,18 +268,99 @@ async function handleReplaceInput(event: Event): Promise<void> {
   applyWorkspaceImage(dataUrl)
 }
 
+function handleVideoLoaded(event: Event): void {
+  const video = event.target as HTMLVideoElement
+  videoDuration.value = video.duration
+}
+
+function handleVideoPlay(): void {
+  isVideoPlaying.value = true
+}
+
+function handleVideoPause(): void {
+  isVideoPlaying.value = false
+}
+
+function handleVideoSeek(time: number): void {
+  if (videoPlayerRef.value) {
+    videoPlayerRef.value.currentTime = time
+  }
+}
+
+function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return '0:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function handleVideoPlayPause(): void {
+  if (!videoPlayerRef.value) return
+  if (isVideoPlaying.value) {
+    videoPlayerRef.value.pause()
+  } else {
+    void videoPlayerRef.value.play()
+  }
+}
+
+// ── Fullscreen player ────────────────────────────────────────
+
+const fullscreenRef = ref<HTMLDivElement | null>(null)
+const isFullscreen = ref(false)
+const fsControlsVisible = ref(true)
+let fsHideTimer: ReturnType<typeof setTimeout> | null = null
+
+function showFsControls(): void {
+  fsControlsVisible.value = true
+  if (fsHideTimer) clearTimeout(fsHideTimer)
+  fsHideTimer = setTimeout(() => {
+    if (isFullscreen.value) fsControlsVisible.value = false
+  }, 2500)
+}
+
+function toggleFullscreen(): void {
+  if (!fullscreenRef.value) return
+  if (!document.fullscreenElement) {
+    void fullscreenRef.value.requestFullscreen()
+  } else {
+    void document.exitFullscreen()
+  }
+}
+
+function onFullscreenChange(): void {
+  isFullscreen.value = !!document.fullscreenElement
+  if (isFullscreen.value) {
+    showFsControls()
+  } else {
+    fsControlsVisible.value = true
+    if (fsHideTimer) clearTimeout(fsHideTimer)
+  }
+}
+
+function onFsPointerMove(): void {
+  if (isFullscreen.value) showFsControls()
+}
+
+onMounted(() => {
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  if (fsHideTimer) clearTimeout(fsHideTimer)
+})
+
 watch(
-  () => [props.workspaceId, workspaceContentRevision.value] as const,
+  () => [props.workspaceId, workspaceContentRevision.value, savedWorkspacesRevision.value] as const,
   () => {
     void syncHydratedImage()
+    void syncHydratedVideo()
   },
   { immediate: true },
 )
 
 onUnmounted(() => {
-  if (backgroundVideoUrl.value) {
-    URL.revokeObjectURL(backgroundVideoUrl.value)
-  }
+  clearVideoObjectUrl(props.workspaceId)
 })
 
 defineExpose({
@@ -306,19 +432,77 @@ defineExpose({
       </div>
       <div class="app-workspace-canvas-wrap">
         <div class="app-workspace-canvas">
-          <!-- Video background -->
-          <video
-            v-if="hasVideoBackground && backgroundVideoUrl"
-            :src="backgroundVideoUrl"
-            :current-time="videoCurrentTime"
-            class="h-full w-full object-contain"
-            :style="{
-              maxWidth: (workspaceRecord.videoWidth ?? 1920) + 'px',
-              maxHeight: (workspaceRecord.videoHeight ?? 1080) + 'px',
-            }"
-            controls
-            @timeupdate="videoCurrentTime = ($event.target as HTMLVideoElement).currentTime"
-          />
+          <!-- Fullscreen container for video -->
+          <div
+            v-if="backgroundVideoUrl"
+            ref="fullscreenRef"
+            class="relative flex h-full w-full items-center justify-center bg-black"
+          >
+            <video
+              ref="videoPlayerRef"
+              :src="backgroundVideoUrl"
+              class="h-full w-full object-contain"
+              :style="{
+                maxWidth: (workspaceRecord.videoWidth ?? 1920) + 'px',
+                maxHeight: (workspaceRecord.videoHeight ?? 1080) + 'px',
+              }"
+              @loadedmetadata="handleVideoLoaded"
+              @timeupdate="videoCurrentTime = ($event.target as HTMLVideoElement).currentTime"
+              @play="handleVideoPlay"
+              @pause="handleVideoPause"
+            />
+
+            <!-- Fullscreen overlay controls -->
+            <div
+              v-if="isFullscreen"
+              class="absolute inset-0 z-50 flex flex-col justify-end bg-black/20 transition-opacity duration-300"
+              :class="fsControlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+              @pointermove="onFsPointerMove"
+              @click="toggleFullscreen"
+            >
+              <!-- Bottom controls bar -->
+              <div
+                class="flex flex-col gap-1 px-4 pb-3 pt-6"
+                style="background: linear-gradient(transparent, rgba(0,0,0,0.7))"
+                @click.stop
+              >
+                <!-- Progress bar -->
+                <div
+                  class="group relative h-1.5 cursor-pointer rounded-full bg-white/20 transition-all hover:h-2"
+                  @click="handleVideoSeek(($event.offsetX / ($event.target as HTMLElement).clientWidth) * videoDuration)"
+                >
+                  <div
+                    class="h-full rounded-full bg-white transition-all"
+                    :style="{ width: (videoDuration > 0 ? (videoCurrentTime / videoDuration) * 100 : 0) + '%' }"
+                  />
+                </div>
+
+                <!-- Controls row -->
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <button
+                      type="button"
+                      class="text-white/80 transition hover:text-white"
+                      @click="handleVideoPlayPause"
+                    >
+                      <Play v-if="!isVideoPlaying" :size="20" :stroke-width="2" />
+                      <Pause v-else :size="20" :stroke-width="2" />
+                    </button>
+                    <span class="text-xs tabular-nums text-white/70">
+                      {{ formatTime(videoCurrentTime) }} / {{ formatTime(videoDuration) }}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    class="text-white/60 transition hover:text-white"
+                    @click="toggleFullscreen"
+                  >
+                    <Minimize2 :size="18" :stroke-width="1.75" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- Image background -->
           <WorkspaceImageViewport
           v-else-if="displaySourceImage"
@@ -328,10 +512,25 @@ defineExpose({
           class="h-full"
         />
         </div>
+
+        <!-- Fullscreen toggle button (shown outside fullscreen) -->
+        <button
+          v-if="backgroundVideoUrl && !isFullscreen"
+          type="button"
+          class="absolute bottom-3 right-3 z-10 inline-flex size-8 items-center justify-center rounded-md border border-app-border bg-app/90 text-app-muted shadow-sm backdrop-blur-sm transition hover:bg-app-elevated hover:text-app-foreground"
+          title="全屏播放"
+          @click="toggleFullscreen"
+        >
+          <Maximize2 :size="16" :stroke-width="1.75" />
+        </button>
       </div>
       <VideoTimeline
-        v-model:current-time="videoCurrentTime"
-        :duration="10"
+        :current-time="videoCurrentTime"
+        :duration="videoDuration"
+        :playing="isVideoPlaying"
+        @play="handleVideoPlayPause"
+        @pause="handleVideoPlayPause"
+        @seek="handleVideoSeek"
       />
     </div>
     <!-- image workspace — no image yet -->

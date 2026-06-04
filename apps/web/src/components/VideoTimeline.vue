@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { Play, Pause, Scissors } from '@lucide/vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
+import { Play, Pause, ZoomIn, ZoomOut } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
+import gsap from 'gsap'
 
 const { t } = useI18n()
 
@@ -9,150 +10,304 @@ const props = withDefaults(
   defineProps<{
     duration?: number
     currentTime?: number
+    playing?: boolean
   }>(),
   {
-    duration: 10,
+    duration: 0,
     currentTime: 0,
+    playing: false,
   },
 )
 
 const emit = defineEmits<{
-  'update:currentTime': [time: number]
+  play: []
+  pause: []
+  seek: [time: number]
 }>()
 
-const isPlaying = ref(false)
-const timelineRef = ref<HTMLDivElement | null>(null)
+const scrollRef = ref<HTMLDivElement | null>(null)
+const playheadRef = ref<HTMLDivElement | null>(null)
+const isDragging = ref(false)
 
-const TIME_SCALE = 80 // pixels per second
+const displayDuration = computed(() => Math.max(props.duration, 0))
 
-const totalWidth = computed(() => Math.max(props.duration * TIME_SCALE, 200))
+// ── Zoom ──────────────────────────────────────────────────────
 
-const playheadPosition = computed(() => {
-  if (props.duration <= 0) return 0
-  return (props.currentTime / props.duration) * totalWidth.value
+const zoom = ref(90)
+const timeScale = computed(() => zoom.value)
+
+const trackWidth = computed(() => {
+  if (displayDuration.value <= 0) return 600
+  return Math.max(displayDuration.value * timeScale.value, 600)
 })
 
-const timeMarkers = computed(() => {
-  const markers: { time: number; label: string }[] = []
-  const step = getMarkerStep(props.duration)
-  for (let t = 0; t <= props.duration; t += step) {
-    markers.push({
-      time: t,
-      label: formatTime(t),
-    })
-  }
-  return markers
-})
+// ── Playhead visual position ──────────────────────────────────
+// During playback: follows props.currentTime directly (stable).
+// On seek (click): GSAP power2.out tween for a smooth slide.
+// During drag: follows drag position directly.
+const smoothTime = ref(0)
+let seekTween: gsap.core.Tween | null = null
 
-function getMarkerStep(duration: number): number {
-  if (duration <= 5) return 1
-  if (duration <= 30) return 5
-  if (duration <= 60) return 10
-  return 30
+function animateSeek(target: number): void {
+  seekTween?.kill()
+  seekTween = gsap.to(smoothTime, {
+    value: target,
+    duration: 0.25,
+    ease: 'power2.out',
+    onComplete: () => { seekTween = null; smoothTime.value = target },
+  })
 }
 
+onUnmounted(() => { seekTween?.kill() })
+
+// During playback / seeking: sync smoothTime with the prop.
+// The GSAP seek animation has priority — don't overwrite it while running.
+watch(() => props.currentTime, (t) => {
+  if (!seekTween) smoothTime.value = t
+})
+
+// Reset when a new video loads.
+watch(() => props.duration, () => { smoothTime.value = 0 })
+
+const playheadPx = computed(() => {
+  if (displayDuration.value <= 0) return 0
+  return (smoothTime.value / displayDuration.value) * trackWidth.value
+})
+
+// ── Ruler ticks ──────────────────────────────────────────────
+
+interface Tick {
+  time: number
+  label: string
+  major: boolean
+}
+
+const ticks = computed(() => {
+  const dur = displayDuration.value
+  if (dur <= 0) return []
+
+  // Determine secondary-tick interval based on zoom
+  const scale = timeScale.value
+  let minorStep: number
+  if (scale >= 300) minorStep = 0.1   // 100 ms
+  else if (scale >= 150) minorStep = 0.5  // 500 ms
+  else if (scale >= 60) minorStep = 1     // 1 s
+  else minorStep = 5                      // 5 s
+
+  // Major tick every 5th minor, or every second if minor < 1
+  let majorEvery: number
+  if (minorStep >= 1) majorEvery = Math.max(1, Math.round(5 / minorStep)) * Math.ceil(minorStep)
+  else majorEvery = 1  // every second is a major tick
+
+  const result: Tick[] = []
+  for (let t = 0; t <= dur; t += minorStep) {
+    const rounded = Math.round(t * 100) / 100
+    result.push({
+      time: rounded,
+      label: t % majorEvery < minorStep ? formatTime(rounded) : '',
+      major: t % majorEvery < minorStep,
+    })
+  }
+  return result
+})
+
+// ── Helpers ──────────────────────────────────────────────────
+
 function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return '0:00'
   const m = Math.floor(seconds / 60)
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function togglePlay(): void {
-  isPlaying.value = !isPlaying.value
+function handlePlayPause(): void {
+  if (props.playing) emit('pause')
+  else emit('play')
 }
 
-function handleTimelineClick(event: MouseEvent): void {
-  const el = timelineRef.value
-  if (!el) return
-
+function clientXToTime(clientX: number): number {
+  const el = scrollRef.value
+  if (!el || displayDuration.value <= 0) return 0
   const rect = el.getBoundingClientRect()
-  const x = event.clientX - rect.left
-  const ratio = Math.max(0, Math.min(1, x / totalWidth.value))
-  const time = ratio * props.duration
-  emit('update:currentTime', time)
+  const x = clientX - rect.left + el.scrollLeft
+  return Math.min(Math.max((x / trackWidth.value) * displayDuration.value, 0), displayDuration.value)
 }
 
-function handleTimelineDrag(event: PointerEvent): void {
-  const el = timelineRef.value
-  if (!el) return
+// ── Interactions ─────────────────────────────────────────────
 
-  const rect = el.getBoundingClientRect()
-  const x = Math.max(0, Math.min(event.clientX - rect.left, totalWidth.value))
-  const ratio = x / totalWidth.value
-  const time = ratio * props.duration
-  emit('update:currentTime', time)
+/** Click on the track → animate playhead there + seek. */
+function onTrackClick(event: MouseEvent): void {
+  if (isDragging.value) return
+  const target = clientXToTime(event.clientX)
+  animateSeek(target)
+  emit('seek', target)
 }
+
+/** Start dragging the playhead. */
+function onPlayheadPointerDown(event: PointerEvent): void {
+  if (event.button !== 0) return
+  isDragging.value = true
+  event.preventDefault()
+  playheadRef.value?.setPointerCapture(event.pointerId)
+}
+
+/** Update while dragging — directly snap playhead, no animation. */
+function onPlayheadPointerMove(event: PointerEvent): void {
+  if (!isDragging.value) return
+  const t = clientXToTime(event.clientX)
+  smoothTime.value = t
+  emit('seek', t)
+}
+
+/** End drag. */
+function onPlayheadPointerUp(event: PointerEvent): void {
+  if (!isDragging.value) return
+  isDragging.value = false
+  playheadRef.value?.releasePointerCapture(event.pointerId)
+  const target = clientXToTime(event.clientX)
+  smoothTime.value = target // snap to final position
+  animateSeek(target)
+  emit('seek', target)
+}
+
+// ── Zoom ─────────────────────────────────────────────────────
+
+function zoomIn(): void {
+  zoom.value = Math.min(zoom.value * 1.4, 600)
+}
+
+function zoomOut(): void {
+  zoom.value = Math.max(zoom.value / 1.4, 30)
+}
+
+// ── Auto-scroll playhead during playback ─────────────────────
+
+function scrollPlayheadIntoView(): void {
+  const el = scrollRef.value
+  if (!el || displayDuration.value <= 0) return
+  const target = playheadPx.value - el.clientWidth * 0.4
+  el.scrollLeft = Math.max(0, Math.min(target, el.scrollWidth - el.clientWidth))
+}
+
+watch(
+  () => props.currentTime,
+  () => {
+    if (props.playing) scrollPlayheadIntoView()
+  },
+)
 </script>
 
 <template>
-  <div class="flex h-20 shrink-0 items-center border-t border-app-border bg-app px-3">
-    <!-- Transport controls -->
-    <div class="mr-3 flex items-center gap-1.5">
-      <button
-        type="button"
-        class="inline-flex size-7 items-center justify-center rounded-md text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
-        :title="isPlaying ? t('timeline.pause') : t('timeline.play')"
-        :aria-label="isPlaying ? t('timeline.pause') : t('timeline.play')"
-        @click="togglePlay"
-      >
-        <Play v-if="!isPlaying" :size="14" :stroke-width="1.75" />
-        <Pause v-else :size="14" :stroke-width="1.75" />
-      </button>
-      <button
-        type="button"
-        class="inline-flex size-7 items-center justify-center rounded-md text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
-        :title="t('timeline.split')"
-        :aria-label="t('timeline.split')"
-      >
-        <Scissors :size="14" :stroke-width="1.75" />
-      </button>
-    </div>
-
-    <!-- Timeline track -->
-    <div
-      ref="timelineRef"
-      class="relative h-full flex-1 cursor-pointer overflow-hidden py-3"
-      @click="handleTimelineClick"
-      @pointerdown="handleTimelineDrag"
-    >
-      <div class="relative h-full" :style="{ width: totalWidth + 'px' }">
-        <!-- Time ruler -->
-        <div class="absolute inset-x-0 top-0 flex">
-          <div
-            v-for="marker in timeMarkers"
-            :key="marker.time"
-            class="absolute top-0 flex flex-col items-start"
-            :style="{ left: (marker.time / duration) * 100 + '%' }"
-          >
-            <div class="h-2 w-px bg-app-muted" />
-            <span class="mt-0.5 text-[10px] leading-none text-app-subtle">
-              {{ marker.label }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Track area -->
-        <div class="absolute inset-x-0 bottom-0 h-6 rounded bg-app-surface">
-          <div
-            class="h-full rounded bg-app-muted/20"
-            :style="{ width: (currentTime / duration) * 100 + '%' }"
-          />
-        </div>
-
-        <!-- Playhead -->
-        <div
-          class="absolute top-0 bottom-0 flex flex-col items-center"
-          :style="{ left: playheadPosition + 'px' }"
+  <div class="flex shrink-0 flex-col border-t border-app-border bg-[#1a1a1a]">
+    <!-- Toolbar: transport, zoom, time -->
+    <div class="flex items-center justify-between border-b border-white/5 px-3 py-1.5">
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="inline-flex size-7 items-center justify-center rounded text-white/60 transition hover:bg-white/10 hover:text-white"
+          :title="playing ? t('timeline.pause') : t('timeline.play')"
+          @click="handlePlayPause"
         >
-          <div class="size-2.5 rounded-full border-2 border-app-accent bg-app" />
-          <div class="mx-auto w-0.5 flex-1 bg-app-accent" />
-        </div>
+          <Play v-if="!playing" :size="15" :stroke-width="1.75" />
+          <Pause v-else :size="15" :stroke-width="1.75" />
+        </button>
+      </div>
+
+      <div class="flex items-center gap-1">
+        <button
+          type="button"
+          class="inline-flex size-6 items-center justify-center rounded text-white/40 transition hover:bg-white/10 hover:text-white/80"
+          title="缩小"
+          @click="zoomOut"
+        >
+          <ZoomOut :size="13" :stroke-width="1.75" />
+        </button>
+        <button
+          type="button"
+          class="inline-flex size-6 items-center justify-center rounded text-white/40 transition hover:bg-white/10 hover:text-white/80"
+          title="放大"
+          @click="zoomIn"
+        >
+          <ZoomIn :size="13" :stroke-width="1.75" />
+        </button>
+      </div>
+
+      <div class="text-[11px] tabular-nums text-white/50">
+        <span class="font-medium text-white/80">{{ formatTime(currentTime) }}</span>
+        <span class="mx-1">/</span>
+        <span>{{ formatTime(displayDuration) }}</span>
       </div>
     </div>
 
-    <!-- Time display -->
-    <div class="ml-3 shrink-0 text-[11px] tabular-nums text-app-muted">
-      {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
+    <!-- Scrollable timeline area -->
+    <div
+      ref="scrollRef"
+      class="relative h-44 select-none overflow-x-auto overscroll-x-contain scrollbar-thin"
+      style="background: #141414"
+    >
+      <div
+        class="relative"
+        :style="{ width: trackWidth + 'px', height: '100%' }"
+      >
+        <!-- Ruler -->
+        <div class="absolute inset-x-0 top-0 z-10" style="height: 22px">
+          <div
+            v-for="tick in ticks"
+            :key="tick.time"
+            class="absolute top-0 flex flex-col items-start"
+            :style="{ left: (tick.time / displayDuration) * 100 + '%' }"
+          >
+            <div
+              class="shrink-0"
+              :class="tick.major ? 'h-3 w-px bg-white/25' : 'h-1.5 w-px bg-white/10'"
+            />
+            <span
+              v-if="tick.label"
+              class="mt-0.5 whitespace-nowrap text-[9px] leading-none text-white/35"
+            >{{ tick.label }}</span>
+          </div>
+        </div>
+
+        <!-- Video track row (clickable for seek) -->
+        <div
+          class="absolute cursor-pointer"
+          :style="{ left: '0', top: '22px', right: '0', height: '96px' }"
+          @click="onTrackClick"
+        >
+          <div
+            class="absolute inset-y-2 rounded"
+            style="left: 0; right: 0; background: linear-gradient(135deg, #2a5a8a, #1e3a5f)"
+          />
+        </div>
+
+        <!-- Audio track row (placeholder) -->
+        <div
+          class="absolute"
+          :style="{ left: '0', top: '118px', right: '0', height: '32px' }"
+        >
+          <div class="mt-1 h-6 rounded bg-white/5" />
+        </div>
+
+        <!-- Playhead (full height) -->
+        <div
+          v-if="displayDuration > 0"
+          ref="playheadRef"
+          class="absolute top-0 z-20 flex cursor-grab flex-col items-center"
+          :class="isDragging ? 'cursor-grabbing' : 'cursor-grab'"
+          :style="{ left: playheadPx + 'px', height: '100%' }"
+          @pointerdown="onPlayheadPointerDown"
+          @pointermove="onPlayheadPointerMove"
+          @pointerup="onPlayheadPointerUp"
+          @pointercancel="onPlayheadPointerUp"
+        >
+          <!-- Triangle handle -->
+          <svg width="10" height="10" viewBox="0 0 10 10" class="shrink-0">
+            <polygon points="0,0 10,0 5,10" fill="#f97316" />
+          </svg>
+          <!-- Vertical line -->
+          <div class="w-0.5 flex-1 bg-orange-500 shadow-sm" />
+        </div>
+      </div>
     </div>
   </div>
 </template>
