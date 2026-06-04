@@ -165,8 +165,16 @@ const en = {
     analysisModel: 'Analysis model',
     editModel: 'Edit model',
   },
+  timeline: {
+    play: 'Play',
+    pause: 'Pause',
+    split: 'Split',
+  },
   editorPanel: {
     title: 'Edit',
+    videoTitle: 'Video Tools',
+    videoNotAvailable: 'Not yet available',
+    videoNotAvailableHint: 'Video editing features are under development, stay tuned',
     modeLabel: 'Edit mode',
     noWorkspace: 'Open or create a workspace to start editing',
     uploadFirst: 'Upload an image first',

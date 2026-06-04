@@ -167,8 +167,16 @@ const ja: MessageSchema = {
     analysisModel: '分析モデル',
     editModel: '修图モデル',
   },
+  timeline: {
+    play: '再生',
+    pause: '一時停止',
+    split: '分割',
+  },
   editorPanel: {
     title: '編集',
+    videoTitle: 'ビデオツール',
+    videoNotAvailable: '未実装',
+    videoNotAvailableHint: 'ビデオ編集機能は開発中です。お楽しみに',
     modeLabel: '編集モード',
     noWorkspace: 'ワークスペースを開くか新規作成して編集を開始',
     uploadFirst: '先に画像をアップロードしてください',

@@ -164,8 +164,16 @@ const zhHant: MessageSchema = {
     analysisModel: '分析模型',
     editModel: '修圖模型',
   },
+  timeline: {
+    play: '播放',
+    pause: '暫停',
+    split: '分割',
+  },
   editorPanel: {
     title: '編輯',
+    videoTitle: '影片工具',
+    videoNotAvailable: '暫未開發',
+    videoNotAvailableHint: '影片編輯功能正在開發中，敬請期待',
     modeLabel: '編輯模式',
     noWorkspace: '開啟或新建工作區以開始編輯',
     uploadFirst: '請先上傳圖片',

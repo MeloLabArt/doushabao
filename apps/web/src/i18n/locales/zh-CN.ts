@@ -164,8 +164,16 @@ const zhCN: MessageSchema = {
     analysisModel: "分析模型",
     editModel: "修图模型",
   },
+  timeline: {
+    play: "播放",
+    pause: "暂停",
+    split: "分割",
+  },
   editorPanel: {
     title: "编辑",
+    videoTitle: "视频工具",
+    videoNotAvailable: "暂未开发",
+    videoNotAvailableHint: "视频编辑功能正在开发中，敬请期待",
     modeLabel: "编辑模式",
     noWorkspace: "打开或新建工作区以开始编辑",
     uploadFirst: "请先上传图片",

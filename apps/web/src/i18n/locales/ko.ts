@@ -167,8 +167,16 @@ const ko: MessageSchema = {
     analysisModel: '분석 모델',
     editModel: '편집 모델',
   },
+  timeline: {
+    play: '재생',
+    pause: '일시 정지',
+    split: '분할',
+  },
   editorPanel: {
     title: '편집',
+    videoTitle: '비디오 도구',
+    videoNotAvailable: '미개발',
+    videoNotAvailableHint: '비디오 편집 기능은 개발 중입니다. 기대해 주세요',
     modeLabel: '편집 모드',
     noWorkspace: '작업 공간을 열거나 새로 만들어 편집 시작',
     uploadFirst: '먼저 이미지를 업로드하세요',

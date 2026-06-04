@@ -23,3 +23,12 @@ export function readImageFileAsDataUrl(file: File): Promise<string> {
 export function pickImageFile(files: FileList | File[]): File | null {
   return Array.from(files).find(isImageFile) ?? null
 }
+
+function isVideoFile(file: File): boolean {
+  return file.type.startsWith('video/')
+}
+
+export function pickMediaFile(files: FileList | File[], mediaType: 'image' | 'video'): File | null {
+  const check = mediaType === 'image' ? isImageFile : isVideoFile
+  return Array.from(files).find(check) ?? null
+}

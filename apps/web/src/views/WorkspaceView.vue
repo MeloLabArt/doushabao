@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { LoaderCircle } from '@lucide/vue'
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -9,8 +9,9 @@ defineOptions({
 })
 
 import ImageDropzone from '@/components/ImageDropzone.vue'
+import VideoTimeline from '@/components/VideoTimeline.vue'
 import WorkspaceImageViewport from '@/components/WorkspaceImageViewport.vue'
-import { pickImageFile, readImageFileAsDataUrl } from '@/lib/read-image-file'
+import { pickImageFile, readImageFileAsDataUrl, pickMediaFile } from '@/lib/read-image-file'
 import {
   addOpenWorkspace,
   getWorkspace,
@@ -41,6 +42,10 @@ const hydratedSourceImage = ref<string | null>(null)
 const isLoadingImage = ref(false)
 const replaceInputRef = ref<HTMLInputElement | null>(null)
 
+// Video workspace state
+const backgroundVideoUrl = ref<string | null>(null)
+const videoCurrentTime = ref(0)
+
 const workspaceRecord = computed(() => {
   openWorkspaces.value
   workspaceContentRevision.value
@@ -54,6 +59,12 @@ const displaySourceImage = computed(
 
 const hasImage = computed(
   () => Boolean(displaySourceImage.value || workspaceRecord.value?.hasSourceImage),
+)
+
+const hasVideoBackground = computed(() => Boolean(backgroundVideoUrl.value))
+
+const hasBackground = computed(
+  () => displaySourceImage.value || backgroundVideoUrl.value,
 )
 
 const isEditing = computed(() => {
@@ -159,9 +170,51 @@ function openReplacePicker(): void {
 
 async function handleReplaceInput(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
-  const file = input.files ? pickImageFile(input.files) : null
+  // Convert to array BEFORE clearing the input — FileList is live and
+  // resetting the value clears the FileList object itself.
+  const fileArray = input.files ? Array.from(input.files) : []
   input.value = ''
 
+  if (fileArray.length === 0) {
+    return
+  }
+
+  if (isVideoWorkspace.value) {
+    // In video mode, accept both images and videos
+    const imageFile = pickImageFile(fileArray)
+    if (imageFile) {
+      const dataUrl = await readImageFileAsDataUrl(imageFile)
+      applyWorkspaceImage(dataUrl)
+      return
+    }
+
+    const videoFile = pickMediaFile(fileArray, 'video')
+    if (videoFile) {
+      // Revoke previous video URL
+      if (backgroundVideoUrl.value) {
+        URL.revokeObjectURL(backgroundVideoUrl.value)
+      }
+      backgroundVideoUrl.value = URL.createObjectURL(videoFile)
+      videoCurrentTime.value = 0
+
+      // Clear any existing source image when using video
+      const record = workspaceRecord.value
+      if (record) {
+        const nextWorkspace: Workspace = {
+          ...record,
+          sourceImage: undefined,
+          hasSourceImage: false,
+        }
+        stageWorkspaceImageChange(nextWorkspace)
+      }
+      return
+    }
+
+    return
+  }
+
+  // Image workspace mode
+  const file = pickImageFile(fileArray)
   if (!file) {
     return
   }
@@ -178,6 +231,12 @@ watch(
   { immediate: true },
 )
 
+onUnmounted(() => {
+  if (backgroundVideoUrl.value) {
+    URL.revokeObjectURL(backgroundVideoUrl.value)
+  }
+})
+
 defineExpose({
   commitWorkspaceChanges,
 })
@@ -190,14 +249,14 @@ defineExpose({
     </p>
     <!-- video workspace — blank canvas -->
     <div
-      v-else-if="workspaceRecord.workspaceType === 'video' && !displaySourceImage"
+      v-else-if="workspaceRecord.workspaceType === 'video' && !hasBackground"
       class="flex min-h-0 flex-1 flex-col"
     >
       <div class="app-workspace-toolbar">
         <input
           ref="replaceInputRef"
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           class="hidden"
           @change="handleReplaceInput"
         />
@@ -222,6 +281,58 @@ defineExpose({
           </p>
         </div>
       </div>
+    </div>
+
+    <!-- video workspace — has background -->
+    <div
+      v-else-if="workspaceRecord.workspaceType === 'video' && hasBackground"
+      class="flex min-h-0 flex-1 flex-col"
+    >
+      <div class="app-workspace-toolbar">
+        <input
+          ref="replaceInputRef"
+          type="file"
+          accept="image/*,video/*"
+          class="hidden"
+          @change="handleReplaceInput"
+        />
+        <button
+          type="button"
+          class="rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          @click="openReplacePicker"
+        >
+          {{ t('workspace.replaceImage') }}
+        </button>
+      </div>
+      <div class="app-workspace-canvas-wrap">
+        <div class="app-workspace-canvas">
+          <!-- Video background -->
+          <video
+            v-if="hasVideoBackground && backgroundVideoUrl"
+            :src="backgroundVideoUrl"
+            :current-time="videoCurrentTime"
+            class="h-full w-full object-contain"
+            :style="{
+              maxWidth: (workspaceRecord.videoWidth ?? 1920) + 'px',
+              maxHeight: (workspaceRecord.videoHeight ?? 1080) + 'px',
+            }"
+            controls
+            @timeupdate="videoCurrentTime = ($event.target as HTMLVideoElement).currentTime"
+          />
+          <!-- Image background -->
+          <WorkspaceImageViewport
+          v-else-if="displaySourceImage"
+          :key="displaySourceImage"
+          :src="displaySourceImage"
+          :alt="t('workspace.image')"
+          class="h-full"
+        />
+        </div>
+      </div>
+      <VideoTimeline
+        v-model:current-time="videoCurrentTime"
+        :duration="10"
+      />
     </div>
     <!-- image workspace — no image yet -->
     <div
