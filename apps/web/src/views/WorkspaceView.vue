@@ -304,10 +304,15 @@ function handleVideoPlayPause(): void {
 }
 
 // ── Fullscreen player ────────────────────────────────────────
+import gsap from 'gsap'
 
 const fullscreenRef = ref<HTMLDivElement | null>(null)
 const isFullscreen = ref(false)
 const fsControlsVisible = ref(true)
+const fsProgressRef = ref<HTMLDivElement | null>(null)
+const fsIsDragging = ref(false)
+const fsSmoothTime = ref(0)
+let fsSeekTween: gsap.core.Tween | null = null
 let fsHideTimer: ReturnType<typeof setTimeout> | null = null
 
 function showFsControls(): void {
@@ -340,6 +345,49 @@ function onFullscreenChange(): void {
 function onFsPointerMove(): void {
   if (isFullscreen.value) showFsControls()
 }
+
+function fsClientXToProgress(clientX: number): number {
+  const el = fsProgressRef.value
+  if (!el || videoDuration.value <= 0) return 0
+  const rect = el.getBoundingClientRect()
+  return Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1)
+}
+
+function onFsProgressPointerDown(event: PointerEvent): void {
+  if (event.button !== 0 || !videoPlayerRef.value) return
+  fsIsDragging.value = true
+  fsSeekTween?.kill(); fsSeekTween = null
+  const ratio = fsClientXToProgress(event.clientX)
+  const t = ratio * videoDuration.value
+  fsSmoothTime.value = t
+  videoPlayerRef.value.currentTime = t
+  fsProgressRef.value?.setPointerCapture(event.pointerId)
+  event.preventDefault()
+}
+
+function onFsProgressPointerMove(event: PointerEvent): void {
+  if (!fsIsDragging.value || !videoPlayerRef.value) return
+  const ratio = fsClientXToProgress(event.clientX)
+  const t = ratio * videoDuration.value
+  fsSmoothTime.value = t
+  videoPlayerRef.value.currentTime = t
+}
+
+function onFsProgressPointerUp(event: PointerEvent): void {
+  if (!fsIsDragging.value) return
+  fsIsDragging.value = false
+  fsProgressRef.value?.releasePointerCapture(event.pointerId)
+  const t = fsClientXToProgress(event.clientX) * videoDuration.value
+  fsSmoothTime.value = t
+  if (videoPlayerRef.value) videoPlayerRef.value.currentTime = t
+}
+
+// Sync fullscreen smooth time with video time when not dragging
+watch(videoCurrentTime, (t) => {
+  if (!fsIsDragging.value && !fsSeekTween && isFullscreen.value) {
+    fsSmoothTime.value = t
+  }
+})
 
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
@@ -466,14 +514,28 @@ defineExpose({
                 style="background: linear-gradient(transparent, rgba(0,0,0,0.7))"
                 @click.stop
               >
-                <!-- Progress bar -->
+                <!-- Progress bar — YouTube-style draggable -->
                 <div
-                  class="group relative h-1.5 cursor-pointer rounded-full bg-white/20 transition-all hover:h-2"
-                  @click="handleVideoSeek(($event.offsetX / ($event.target as HTMLElement).clientWidth) * videoDuration)"
+                  ref="fsProgressRef"
+                  class="group relative cursor-pointer py-2"
+                  @pointerdown="onFsProgressPointerDown"
+                  @pointermove="onFsProgressPointerMove"
+                  @pointerup="onFsProgressPointerUp"
+                  @pointercancel="onFsProgressPointerUp"
                 >
+                  <!-- Track background -->
+                  <div class="h-1 rounded-full bg-white/20 group-hover:h-1.5 transition-all duration-75">
+                    <!-- Progress fill — no CSS transition, JS drives it -->
+                    <div
+                      class="h-full rounded-full bg-white"
+                      :style="{ width: (videoDuration > 0 ? (fsSmoothTime / videoDuration) * 100 : 0) + '%' }"
+                    />
+                  </div>
+                  <!-- Scrubber handle (shows on hover/drag) -->
                   <div
-                    class="h-full rounded-full bg-white transition-all"
-                    :style="{ width: (videoDuration > 0 ? (videoCurrentTime / videoDuration) * 100 : 0) + '%' }"
+                    class="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md transition-transform duration-75 scale-0 group-hover:scale-100"
+                    :class="fsIsDragging ? 'scale-100' : ''"
+                    :style="{ left: (videoDuration > 0 ? (fsSmoothTime / videoDuration) * 100 : 0) + '%' }"
                   />
                 </div>
 
