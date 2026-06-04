@@ -69,6 +69,7 @@ const ja: MessageSchema = {
     image: 'ワークスペース画像',
     loadingImage: '画像を読み込み中…',
     replaceImage: '画像を差し替え',
+    replaceBackground: '背景を変更',
     editing: '編集中',
     fitCanvas: 'キャンバスに合わせる',
   },

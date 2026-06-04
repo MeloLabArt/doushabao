@@ -67,6 +67,7 @@ const en = {
     image: 'Workspace image',
     loadingImage: 'Loading image…',
     replaceImage: 'Replace image',
+    replaceBackground: 'Replace background',
     editing: 'Editing',
     fitCanvas: 'Fit to canvas',
   },

@@ -69,6 +69,7 @@ const zhHant: MessageSchema = {
     image: '工作區圖片',
     loadingImage: '正在載入圖片…',
     replaceImage: '更換圖片',
+    replaceBackground: '更換背景',
     editing: '正在編輯',
     fitCanvas: '適應畫布',
   },

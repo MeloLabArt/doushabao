@@ -69,6 +69,7 @@ const ko: MessageSchema = {
     image: '작업 공간 이미지',
     loadingImage: '이미지 로드 중…',
     replaceImage: '이미지 교체',
+    replaceBackground: '배경 교체',
     editing: '편집 중',
     fitCanvas: '캔버스에 맞추기',
   },

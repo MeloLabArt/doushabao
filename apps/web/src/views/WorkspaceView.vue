@@ -439,7 +439,7 @@ defineExpose({
           class="rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
           @click="openReplacePicker"
         >
-          {{ t('workspace.replaceImage') }}
+          {{ t('workspace.replaceBackground') }}
         </button>
       </div>
       <div class="flex flex-1 items-center justify-center p-6">
@@ -475,7 +475,7 @@ defineExpose({
           class="rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground disabled:cursor-not-allowed disabled:opacity-50"
           @click="openReplacePicker"
         >
-          {{ t('workspace.replaceImage') }}
+          {{ t('workspace.replaceBackground') }}
         </button>
       </div>
       <div class="app-workspace-canvas-wrap">

@@ -69,6 +69,7 @@ const zhCN: MessageSchema = {
     image: "工作区图片",
     loadingImage: "正在加载图片…",
     replaceImage: "更换图片",
+    replaceBackground: "更换背景",
     editing: "正在编辑",
     fitCanvas: "适应画布",
   },
