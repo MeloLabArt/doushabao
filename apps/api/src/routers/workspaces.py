@@ -81,8 +81,8 @@ def _to_out(record: WorkspaceRecord) -> WorkspaceOut:
         updatedAt=record.updated_at,
         hasSourceImage=record.has_source_image,
         workspaceType=record.workspace_type,
-        videoWidth=record.video_width,
-        videoHeight=record.video_height,
+        videoWidth=record.video_width if record.video_width is not None else 1080,
+        videoHeight=record.video_height if record.video_height is not None else 1920,
     )
 
 
