@@ -18,6 +18,7 @@ import {
   getVideoObjectUrl,
   getWorkspace,
   isWorkspaceEditing,
+  markWorkspaceDirty,
   openWorkspaces,
   persistWorkspace,
   recordWorkspaceImageHistory,
@@ -48,7 +49,9 @@ import {
   restorePortraitDataFromWorkspace,
   undoPortraitChange,
   updatePortraitClip,
+  recordPortraitHistory,
   workspacePortraitRevision,
+  type PortraitAsset,
   type PortraitClip,
 } from '@/lib/workspace-portrait'
 import { ImagePlus } from '@lucide/vue'
@@ -73,6 +76,23 @@ const isLoadingVideo = ref(false)
 // Portrait state
 const portraitInputRef = ref<HTMLInputElement | null>(null)
 const selectedPortraitClipId = ref<string | null>(null)
+
+// Interactive portrait transform state
+const portraitCanvasRef = ref<HTMLDivElement | null>(null)
+const portraitDragState = ref<{
+  clipId: string
+  startPointerX: number
+  startPointerY: number
+  startClipX: number
+  startClipY: number
+} | null>(null)
+const portraitRotateState = ref<{
+  clipId: string
+  centerX: number
+  centerY: number
+  startAngle: number
+  clipRotation: number
+} | null>(null)
 
 const portraitAssets = computed(() => {
   workspacePortraitRevision.value
@@ -361,6 +381,7 @@ function handlePortraitUpload(event: Event): void {
         const asset = addPortraitAsset(props.workspaceId, name, dataUrl)
         // Automatically create a timeline clip for the new portrait
         addPortraitClip(props.workspaceId, asset)
+        markWorkspaceDirty(props.workspaceId)
       }
       reader.readAsDataURL(file)
     }
@@ -368,15 +389,23 @@ function handlePortraitUpload(event: Event): void {
 }
 
 function handlePortraitUpdate(clipId: string, updates: Partial<PortraitClip>): void {
+  markWorkspaceDirty(props.workspaceId)
   updatePortraitClip(props.workspaceId, clipId, updates)
 }
 
 function handlePortraitSplit(clipId: string, splitTime: number): void {
   splitPortraitClip(props.workspaceId, clipId, splitTime)
+  markWorkspaceDirty(props.workspaceId)
+}
+
+function handleAddPortraitClip(asset: PortraitAsset): void {
+  addPortraitClip(props.workspaceId, asset)
+  markWorkspaceDirty(props.workspaceId)
 }
 
 function handlePortraitCopy(clipId: string): void {
   copyPortraitClip(props.workspaceId, clipId)
+  markWorkspaceDirty(props.workspaceId)
 }
 
 function handlePortraitDelete(clipId: string): void {
@@ -385,10 +414,113 @@ function handlePortraitDelete(clipId: string): void {
     selectedPortraitClipId.value = null
   }
   removePortraitClip(props.workspaceId, clipId)
+  markWorkspaceDirty(props.workspaceId)
 }
 
 function handlePortraitSelect(clipId: string | null): void {
   selectedPortraitClipId.value = clipId
+}
+
+// ── Interactive portrait drag (move) & rotate ───────────────────
+
+function getPortraitCanvasRect(): DOMRect | null {
+  // Use the fullscreenRef as the reference container for coordinate conversion
+  return fullscreenRef.value?.getBoundingClientRect() ?? null
+}
+
+function startPortraitDrag(clip: PortraitClip, event: PointerEvent): void {
+  if (event.button !== 0) return
+  selectedPortraitClipId.value = clip.id
+  const rect = getPortraitCanvasRect()
+  if (!rect) return
+
+  // Record undo state before starting the drag
+  recordPortraitHistory(props.workspaceId)
+  markWorkspaceDirty(props.workspaceId)
+
+  portraitDragState.value = {
+    clipId: clip.id,
+    startPointerX: event.clientX,
+    startPointerY: event.clientY,
+    startClipX: clip.x ?? 50,
+    startClipY: clip.y ?? 50,
+  }
+
+  const target = event.currentTarget as HTMLElement
+  target.setPointerCapture(event.pointerId)
+  event.preventDefault()
+}
+
+function onPortraitPointerMove(event: PointerEvent): void {
+  // ── Position drag ──
+  if (portraitDragState.value) {
+    const state = portraitDragState.value
+    const rect = getPortraitCanvasRect()
+    if (!rect) return
+    const dxPx = event.clientX - state.startPointerX
+    const dyPx = event.clientY - state.startPointerY
+    const dxPct = (dxPx / rect.width) * 100
+    const dyPct = (dyPx / rect.height) * 100
+    updatePortraitClip(props.workspaceId, state.clipId, {
+      x: Math.max(0, Math.min(100, state.startClipX + dxPct)),
+      y: Math.max(0, Math.min(100, state.startClipY + dyPct)),
+    }, true /* skipHistory */)
+    return
+  }
+
+  // ── Rotation drag ──
+  if (portraitRotateState.value) {
+    const state = portraitRotateState.value
+    const dx = event.clientX - state.centerX
+    const dy = event.clientY - state.centerY
+    const currentAngle = Math.atan2(dy, dx) * (180 / Math.PI)
+    const deltaDeg = currentAngle - state.startAngle
+    updatePortraitClip(props.workspaceId, state.clipId, {
+      rotation: state.clipRotation + deltaDeg,
+    }, true /* skipHistory */)
+  }
+}
+
+function onPortraitPointerUp(event: PointerEvent): void {
+  if (portraitDragState.value) {
+    const target = event.target as HTMLElement
+    try { target.releasePointerCapture?.(event.pointerId) } catch { /* ignore */ }
+    portraitDragState.value = null
+  }
+  if (portraitRotateState.value) {
+    portraitRotateState.value = null
+  }
+}
+
+function startPortraitRotate(clip: PortraitClip, event: PointerEvent): void {
+  if (event.button !== 0) return
+  event.stopPropagation()
+
+  // Find the portrait image element to calculate rotation center
+  const layer = (event.currentTarget as HTMLElement).closest('[data-portrait-layer]') as HTMLElement
+  const img = layer?.querySelector('img')
+  if (!img) return
+
+  // Record undo state before rotating
+  recordPortraitHistory(props.workspaceId)
+  markWorkspaceDirty(props.workspaceId)
+
+  const rect = img.getBoundingClientRect()
+  const centerX = rect.left + rect.width / 2
+  const centerY = rect.top + rect.height / 2
+  const dx = event.clientX - centerX
+  const dy = event.clientY - centerY
+  const startAngle = Math.atan2(dy, dx) * (180 / Math.PI)
+
+  portraitRotateState.value = {
+    clipId: clip.id,
+    centerX,
+    centerY,
+    startAngle,
+    clipRotation: clip.rotation ?? 0,
+  }
+
+  event.preventDefault()
 }
 
 // ── Fullscreen player ────────────────────────────────────────
@@ -495,11 +627,17 @@ function onPortraitKeyDown(event: KeyboardEvent): void {
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
   document.addEventListener('keydown', onPortraitKeyDown)
+  document.addEventListener('pointermove', onPortraitPointerMove)
+  document.addEventListener('pointerup', onPortraitPointerUp)
+  document.addEventListener('pointercancel', onPortraitPointerUp)
 })
 
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onPortraitKeyDown)
+  document.removeEventListener('pointermove', onPortraitPointerMove)
+  document.removeEventListener('pointerup', onPortraitPointerUp)
+  document.removeEventListener('pointercancel', onPortraitPointerUp)
   if (fsHideTimer) clearTimeout(fsHideTimer)
 })
 
@@ -637,7 +775,7 @@ defineExpose({
             type="button"
             class="ml-0.5 inline-flex size-4 items-center justify-center rounded text-white/30 transition hover:bg-white/10 hover:text-white/70"
             :title="t('portrait.addToTimeline')"
-            @click="addPortraitClip(props.workspaceId, asset)"
+            @click="handleAddPortraitClip(asset)"
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M5 2v6M2 5h6" />
@@ -666,21 +804,65 @@ defineExpose({
               @timeupdate="videoCurrentTime = ($event.target as HTMLVideoElement).currentTime"
               @play="handleVideoPlay"
               @pause="handleVideoPause"
+              @pointerdown="selectedPortraitClipId = null"
             />
 
             <!-- Portrait overlays on video canvas -->
             <div
               v-if="activePortraitClips.length > 0"
-              class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+              ref="portraitCanvasRef"
+              class="absolute inset-0 z-10"
+              style="pointer-events: none"
             >
-              <img
+              <div
                 v-for="clip in activePortraitClips"
                 :key="clip.id"
-                :src="clip.imageDataUrl"
-                :alt="clip.assetName"
-                class="max-h-full max-w-full object-contain"
-                style="max-height: 80%; max-width: 80%"
-              />
+                data-portrait-layer
+                class="absolute"
+                :class="{
+                  'z-20': selectedPortraitClipId === clip.id,
+                  'cursor-grab': portraitDragState?.clipId !== clip.id,
+                  'cursor-grabbing': portraitDragState?.clipId === clip.id,
+                }"
+                :style="{
+                  left: (clip.x ?? 50) + '%',
+                  top: (clip.y ?? 50) + '%',
+                  transform: `translate(-50%, -50%) rotate(${(clip.rotation ?? 0)}deg)`,
+                  pointerEvents: 'auto',
+                  outline: selectedPortraitClipId === clip.id ? '2px solid #3b82f6' : 'none',
+                  outlineOffset: '2px',
+                  borderRadius: '4px',
+                }"
+                @pointerdown="startPortraitDrag(clip, $event)"
+                @pointerup="
+                  selectedPortraitClipId = clip.id;
+                "
+              >
+                <div class="relative inline-block">
+                  <img
+                    :src="clip.imageDataUrl"
+                    :alt="clip.assetName"
+                    class="pointer-events-none block max-h-[80vh] max-w-[80vw] select-none"
+                    draggable="false"
+                  />
+
+                  <!-- Rotation handle (only on selected clip) -->
+                  <div
+                    v-if="selectedPortraitClipId === clip.id"
+                    class="absolute left-1/2 z-30 flex cursor-grab flex-col items-center"
+                    style="bottom: calc(100% + 6px); transform: translateX(-50%)"
+                    :class="{ 'cursor-grabbing': portraitRotateState?.clipId === clip.id }"
+                    @pointerdown.stop="startPortraitRotate(clip, $event)"
+                  >
+                    <!-- Stem line -->
+                    <div class="mx-auto h-3 w-0.5 shrink-0 bg-blue-400" />
+                    <!-- Handle circle -->
+                    <div
+                      class="size-5 shrink-0 rounded-full border-2 border-white bg-blue-500 shadow-md transition-transform hover:scale-110 active:scale-95"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Fullscreen overlay controls -->

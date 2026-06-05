@@ -16,6 +16,12 @@ export interface PortraitClip {
   imageDataUrl: string
   startTime: number
   endTime: number
+  /** Horizontal position as a percentage of canvas width (50 = center). */
+  x?: number
+  /** Vertical position as a percentage of canvas height (50 = center). */
+  y?: number
+  /** Rotation angle in degrees. */
+  rotation?: number
 }
 
 // ── Snapshot for persistence & undo ────────────────────────────────
@@ -104,7 +110,7 @@ function takeSnapshot(workspaceId: string): PortraitSnapshot {
   }
 }
 
-function recordPortraitHistory(workspaceId: string): void {
+export function recordPortraitHistory(workspaceId: string): void {
   const history = workspacePortraitHistory.value[workspaceId] ?? []
   const snapshot = takeSnapshot(workspaceId)
   // Cap history at 50 entries
@@ -211,6 +217,9 @@ export function addPortraitClip(workspaceId: string, asset: PortraitAsset): Port
     imageDataUrl: asset.imageDataUrl,
     startTime: 0,
     endTime: 5,
+    x: 50,
+    y: 50,
+    rotation: 0,
   }
   workspacePortraitClips.value = {
     ...workspacePortraitClips.value,
@@ -224,11 +233,12 @@ export function updatePortraitClip(
   workspaceId: string,
   clipId: string,
   updates: Partial<PortraitClip>,
+  skipHistory: boolean = false,
 ): void {
   const clips = workspacePortraitClips.value[workspaceId]
   if (!clips) return
 
-  recordPortraitHistory(workspaceId)
+  if (!skipHistory) recordPortraitHistory(workspaceId)
 
   workspacePortraitClips.value = {
     ...workspacePortraitClips.value,
