@@ -51,6 +51,7 @@ def init_db() -> None:
     """Create tables and ensure the singleton row exists."""
     SQLModel.metadata.create_all(engine)
     os.makedirs(WORKSPACE_IMAGES_DIR, exist_ok=True)
+
     with Session(engine) as session:
         row = session.get(AppConfig, 1)
         if row is None:

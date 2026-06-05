@@ -40,6 +40,7 @@ import {
   getDisplayWorkspaceTitle,
   isPersistedWorkspace,
   isWorkspaceNameTaken,
+  savedWorkspacesRevision,
 } from '@/lib/workspace-storage'
 import type { Workspace } from '@/types/workspace'
 
@@ -58,8 +59,10 @@ const sidebarVisible = ref(true)
 const rightSidebarVisible = ref(true)
 const openImageInputRef = ref<HTMLInputElement | null>(null)
 
-const appTabs = computed(() =>
-  openTabs.value.flatMap((id) => {
+const appTabs = computed(() => {
+  // Read reactive deps: workspace cache + open tabs + dirty state
+  savedWorkspacesRevision.value
+  return openTabs.value.flatMap((id) => {
     if (isSettingsTab(id)) {
       return [{ id, title: t('common.settings'), isDirty: false }]
     }
@@ -76,8 +79,8 @@ const appTabs = computed(() =>
         isDirty: isWorkspaceDirty(id),
       },
     ]
-  }),
-)
+  })
+})
 
 const activeTabId = computed(() => {
   if (route.name === 'settings') {
@@ -211,7 +214,7 @@ async function handleOpenImageInput(event: Event): Promise<void> {
   openNewWorkspaceWithImage(router, dataUrl)
 }
 
-function handleFileAction(action: 'new-workspace' | 'open' | 'save' | 'export-image') {
+function handleFileAction(action: 'new-workspace' | 'new-video-workspace' | 'open' | 'save' | 'export-image') {
   if (action === 'new-workspace') {
     openNewWorkspace(router)
     return
@@ -511,6 +514,7 @@ async function handleDeleteProject(workspaceId: string): Promise<void> {
     navigateAfterCloseTab(nextTabId)
   }
 }
+
 </script>
 
 <template>

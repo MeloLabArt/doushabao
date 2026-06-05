@@ -371,7 +371,9 @@ const inputClass = 'app-field resize-none'
   >
     <div class="border-b border-app-border px-3 py-2.5">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-xs font-medium tracking-wide text-app-muted uppercase">{{ t('editorPanel.title') }}</h2>
+        <h2 class="text-xs font-medium tracking-wide text-app-muted uppercase">
+          {{ t('editorPanel.title') }}
+        </h2>
         <div
           class="app-segmented"
           role="tablist"

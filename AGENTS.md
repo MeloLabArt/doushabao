@@ -14,12 +14,16 @@
 
 ## How It Works
 
-`make serve` opens a single port (http://localhost:8000):
+`make serve` starts a single-port dev server (http://localhost:8000):
 
-- **First start** — `vite build` performs a full frontend build
-- **Background watch** — `vite build --watch` runs silently, automatically rebuilding on frontend changes
-- **Auto refresh** — browser refreshes immediately after build completes (no manual action needed)
-- **Backend hot-reload** — uvicorn `--reload` automatically restarts on backend code changes
+1. Cleans `apps/web/dist` for a clean initial build
+2. `vite build --watch` runs in the background — watches frontend source files
+   and auto-rebuilds when they change (no HMR, just refresh the browser)
+3. **FastAPI backend** runs via uvicorn `--reload` (port 8000), serving both
+   the API and the frontend SPA from `dist/` on a single port
+
+Frontend changes → Vite rebuilds → refresh browser to see updates.
+Backend changes → uvicorn auto-restarts.
 
 ## Desktop App Architecture
 
@@ -52,7 +56,7 @@
 # Initial setup (install all dependencies)
 make setup
 
-# Start the dev server (http://localhost:8000, auto-refresh)
+# Start the dev server (http://localhost:8000, single-port)
 make serve
 
 # Build frontend for production

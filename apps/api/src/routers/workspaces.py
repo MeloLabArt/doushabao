@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import desc
 from sqlmodel import Session, select
 
 from ..models.settings import (
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/workspaces", tags=["workspaces"])
 
 
-# ── Schemas ────────────────────────────────────────────────────
+# ── Schemas ─────────────────────────────────────────────────
 
 
 class WorkspaceOut(BaseModel):
@@ -28,7 +29,7 @@ class WorkspaceOut(BaseModel):
     title: str
     createdAt: int
     updatedAt: int
-    hasSourceImage: bool
+    hasSourceImage: bool = False
 
 
 class WorkspaceCreate(BaseModel):
@@ -79,7 +80,7 @@ def get_db():
 
 @router.get("", response_model=WorkspaceList)
 def list_workspaces(db: Session = Depends(get_db)):
-    records = db.exec(select(WorkspaceRecord).order_by(WorkspaceRecord.updated_at.desc())).all()
+    records = db.exec(select(WorkspaceRecord).order_by(desc(WorkspaceRecord.updated_at))).all()  # pyright: ignore[reportArgumentType]
     return WorkspaceList(workspaces=[_to_out(r) for r in records])
 
 

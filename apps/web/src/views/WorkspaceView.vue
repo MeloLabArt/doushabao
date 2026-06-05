@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { LoaderCircle } from '@lucide/vue'
-import { computed, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -15,6 +15,7 @@ import {
   addOpenWorkspace,
   getWorkspace,
   isWorkspaceEditing,
+  markWorkspaceDirty,
   openWorkspaces,
   persistWorkspace,
   recordWorkspaceImageHistory,
@@ -28,7 +29,7 @@ import {
   setWorkspaceEditorMarks,
   workspaceUiRevision,
 } from '@/lib/workspace-ui-state'
-import { hydrateWorkspaceImage } from '@/lib/workspace-storage'
+import { hydrateWorkspaceImage, savedWorkspacesRevision } from '@/lib/workspace-storage'
 import type { Workspace } from '@/types/workspace'
 
 const props = defineProps<{
@@ -44,6 +45,7 @@ const replaceInputRef = ref<HTMLInputElement | null>(null)
 const workspaceRecord = computed(() => {
   openWorkspaces.value
   workspaceContentRevision.value
+  savedWorkspacesRevision.value
 
   return getWorkspace(props.workspaceId)
 })
@@ -144,9 +146,15 @@ function openReplacePicker(): void {
 
 async function handleReplaceInput(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
-  const file = input.files ? pickImageFile(input.files) : null
+  const fileArray = input.files ? Array.from(input.files) : []
   input.value = ''
 
+  if (fileArray.length === 0) {
+    return
+  }
+
+  // Image workspace mode
+  const file = pickImageFile(fileArray)
   if (!file) {
     return
   }
@@ -155,13 +163,24 @@ async function handleReplaceInput(event: Event): Promise<void> {
   applyWorkspaceImage(dataUrl)
 }
 
+onMounted(() => {
+  // no-op
+})
+
 watch(
-  () => [props.workspaceId, workspaceContentRevision.value] as const,
+  () => [props.workspaceId, workspaceContentRevision.value, savedWorkspacesRevision.value] as const,
   () => {
     void syncHydratedImage()
   },
   { immediate: true },
 )
+
+/**
+ * Re-run hydration when the component is reactivated by KeepAlive.
+ */
+onActivated(() => {
+  void syncHydratedImage()
+})
 
 defineExpose({
   commitWorkspaceChanges,
@@ -170,15 +189,18 @@ defineExpose({
 
 <template>
   <section v-if="workspaceRecord" class="app-workspace">
+    <!-- Loading image -->
     <p v-if="isLoadingImage" class="flex flex-1 items-center justify-center text-sm text-app-muted">
       {{ t('workspace.loadingImage') }}
     </p>
+    <!-- image workspace — no image yet -->
     <div
       v-else-if="!hasImage"
       class="flex flex-1 items-center justify-center p-6"
     >
       <ImageDropzone @select="handleImageSelect" />
     </div>
+    <!-- image workspace — has image -->
     <div v-else-if="displaySourceImage" class="flex min-h-0 flex-1 flex-col">
       <div class="app-workspace-toolbar">
         <input
@@ -219,5 +241,29 @@ defineExpose({
         </div>
       </div>
     </div>
+    <!-- Fallback: hasImage is true but no image data (hydration failed) -->
+    <div v-else class="flex flex-1 items-center justify-center p-6">
+      <div class="flex flex-col items-center gap-3 text-center">
+        <p class="text-sm text-app-muted">{{ t('workspace.replaceImage') }}</p>
+        <input
+          ref="replaceInputRef"
+          type="file"
+          accept="image/*"
+          class="hidden"
+          @change="handleReplaceInput"
+        />
+        <button
+          type="button"
+          class="rounded-md border border-app-border bg-app-surface px-3 py-1.5 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
+          @click="openReplacePicker"
+        >
+          {{ t('workspace.replaceImage') }}
+        </button>
+      </div>
+    </div>
   </section>
+  <!-- Loading state: workspace record not yet available -->
+  <div v-else class="flex flex-1 items-center justify-center">
+    <LoaderCircle :size="24" :stroke-width="1.75" class="animate-spin text-app-muted" />
+  </div>
 </template>

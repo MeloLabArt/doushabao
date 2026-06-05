@@ -269,13 +269,14 @@ export async function syncWorkspacesFromBackend(): Promise<number> {
 
     for (const w of backend) {
       if (!cache[w.id]) {
-        cache[w.id] = {
+        const cached: Workspace = {
           id: w.id,
           title: w.title,
           createdAt: w.createdAt,
           updatedAt: w.updatedAt,
           hasSourceImage: w.hasSourceImage,
         }
+        cache[w.id] = cached
         count++
       }
     }
