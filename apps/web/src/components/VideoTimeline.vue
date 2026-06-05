@@ -198,8 +198,22 @@ function zoomOut(): void {
 
 const portraitTrackHeight = 28 // px per portrait track
 
+/** Group portrait clips by assetId — each unique asset gets its own track. */
+const portraitTracks = computed(() => {
+  const map = new Map<string, { assetId: string; assetName: string; clips: PortraitClip[] }>()
+  for (const clip of props.portraitClips) {
+    let track = map.get(clip.assetId)
+    if (!track) {
+      track = { assetId: clip.assetId, assetName: clip.assetName, clips: [] }
+      map.set(clip.assetId, track)
+    }
+    track.clips.push(clip)
+  }
+  return Array.from(map.values())
+})
+
 const totalPortraitTrackHeight = computed(() => {
-  return props.portraitClips.length * portraitTrackHeight
+  return portraitTracks.value.length * portraitTrackHeight
 })
 
 const timelineContentHeight = computed(() => {
@@ -337,41 +351,48 @@ watch(
           <div class="mt-1 h-6 rounded bg-white/5" />
         </div>
 
-        <!-- Portrait tracks area (always rendered, clickable for seek) -->
+        <!-- Portrait tracks area (each unique asset gets its own track row) -->
         <div
           class="absolute cursor-pointer"
           :style="{ left: '0', top: '150px', right: '0', bottom: '0' }"
           @click="onTrackClick"
         >
-          <!-- Track backgrounds when clips exist -->
           <div
-            v-for="(_, idx) in Math.ceil(portraitClips.length / 1)"
-            :key="'track-' + idx"
+            v-for="(track, idx) in portraitTracks"
+            :key="track.assetId"
             class="absolute inset-x-0"
             :style="{ top: idx * portraitTrackHeight + 'px', height: portraitTrackHeight + 'px' }"
           >
-            <div
-              class="mx-0.5 mt-0.5 rounded"
-              :class="idx % 2 === 0 ? 'bg-white/5' : 'bg-transparent'"
-              style="height: 26px"
+            <!-- Track background -->
+            <div class="absolute inset-0">
+              <div
+                class="mx-0.5 mt-0.5 rounded"
+                :class="idx % 2 === 0 ? 'bg-white/5' : 'bg-transparent'"
+                style="height: 26px"
+              />
+            </div>
+
+            <!-- Track label (non-interactive overlay) -->
+            <div class="pointer-events-none absolute left-1 top-0 z-10 flex h-full max-w-[52px] items-center overflow-hidden">
+              <span class="truncate leading-none text-[9px] text-white/40">{{ track.assetName }}</span>
+            </div>
+
+            <!-- Clips in this track -->
+            <PortraitTimelineTrack
+              v-for="clip in track.clips"
+              :key="clip.id"
+              :clip="clip"
+              :duration="displayDuration"
+              :time-scale="timeScale"
+              :track-width="trackWidth"
+              :is-selected="clip.id === selectedClipId"
+              @select="handlePortraitSelect"
+              @update="handlePortraitUpdate"
+              @split="handlePortraitSplit"
+              @copy="handlePortraitCopy"
+              @delete="handlePortraitDelete"
             />
           </div>
-
-          <!-- Portrait clip blocks -->
-          <PortraitTimelineTrack
-            v-for="clip in portraitClips"
-            :key="clip.id"
-            :clip="clip"
-            :duration="displayDuration"
-            :time-scale="timeScale"
-            :track-width="trackWidth"
-            :is-selected="clip.id === selectedClipId"
-            @select="handlePortraitSelect"
-            @update="handlePortraitUpdate"
-            @split="handlePortraitSplit"
-            @copy="handlePortraitCopy"
-            @delete="handlePortraitDelete"
-          />
         </div>
 
         <!-- Playhead (full height) -->
