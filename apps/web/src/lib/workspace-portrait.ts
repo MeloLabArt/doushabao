@@ -22,6 +22,8 @@ export interface PortraitClip {
   y?: number
   /** Rotation angle in degrees. */
   rotation?: number
+  /** Scale factor (1 = 100% original size). */
+  scale?: number
 }
 
 // ── Snapshot for persistence & undo ────────────────────────────────
@@ -220,6 +222,7 @@ export function addPortraitClip(workspaceId: string, asset: PortraitAsset): Port
     x: 50,
     y: 50,
     rotation: 0,
+    scale: 1,
   }
   workspacePortraitClips.value = {
     ...workspacePortraitClips.value,
@@ -288,6 +291,10 @@ export function splitPortraitClip(
     imageDataUrl: clip.imageDataUrl,
     startTime: splitTime,
     endTime: clip.endTime,
+    x: clip.x,
+    y: clip.y,
+    rotation: clip.rotation,
+    scale: clip.scale,
   }
 
   const next = [...clips]

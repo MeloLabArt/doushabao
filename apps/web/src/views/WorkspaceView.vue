@@ -94,6 +94,14 @@ const portraitRotateState = ref<{
   clipRotation: number
 } | null>(null)
 
+const portraitResizeState = ref<{
+  clipId: string
+  centerX: number
+  centerY: number
+  startDistance: number
+  startScale: number
+} | null>(null)
+
 const portraitAssets = computed(() => {
   workspacePortraitRevision.value
   return getPortraitAssets(props.workspaceId)
@@ -478,6 +486,19 @@ function onPortraitPointerMove(event: PointerEvent): void {
     updatePortraitClip(props.workspaceId, state.clipId, {
       rotation: state.clipRotation + deltaDeg,
     }, true /* skipHistory */)
+    return
+  }
+
+  // ── Resize drag ──
+  if (portraitResizeState.value) {
+    const state = portraitResizeState.value
+    const dx = event.clientX - state.centerX
+    const dy = event.clientY - state.centerY
+    const currentDistance = Math.sqrt(dx * dx + dy * dy)
+    const newScale = state.startScale * (currentDistance / state.startDistance)
+    updatePortraitClip(props.workspaceId, state.clipId, {
+      scale: Math.max(0.1, Math.min(5, newScale)),
+    }, true /* skipHistory */)
   }
 }
 
@@ -489,6 +510,9 @@ function onPortraitPointerUp(event: PointerEvent): void {
   }
   if (portraitRotateState.value) {
     portraitRotateState.value = null
+  }
+  if (portraitResizeState.value) {
+    portraitResizeState.value = null
   }
 }
 
@@ -518,6 +542,38 @@ function startPortraitRotate(clip: PortraitClip, event: PointerEvent): void {
     centerY,
     startAngle,
     clipRotation: clip.rotation ?? 0,
+  }
+
+  event.preventDefault()
+}
+
+function startPortraitResize(clip: PortraitClip, event: PointerEvent): void {
+  if (event.button !== 0) return
+  event.stopPropagation()
+  selectedPortraitClipId.value = clip.id
+
+  // Find the portrait image element to calculate resize center
+  const layer = (event.currentTarget as HTMLElement).closest('[data-portrait-layer]') as HTMLElement
+  const img = layer?.querySelector('img')
+  if (!img) return
+
+  // Record undo state before resizing
+  recordPortraitHistory(props.workspaceId)
+  markWorkspaceDirty(props.workspaceId)
+
+  const rect = img.getBoundingClientRect()
+  const centerX = rect.left + rect.width / 2
+  const centerY = rect.top + rect.height / 2
+  const dx = event.clientX - centerX
+  const dy = event.clientY - centerY
+  const startDistance = Math.sqrt(dx * dx + dy * dy)
+
+  portraitResizeState.value = {
+    clipId: clip.id,
+    centerX,
+    centerY,
+    startDistance,
+    startScale: clip.scale ?? 1,
   }
 
   event.preventDefault()
@@ -832,7 +888,7 @@ defineExpose({
                 :style="{
                   left: (clip.x ?? 50) + '%',
                   top: (clip.y ?? 50) + '%',
-                  transform: `translate(-50%, -50%) rotate(${(clip.rotation ?? 0)}deg)`,
+                  transform: `translate(-50%, -50%) rotate(${(clip.rotation ?? 0)}deg) scale(${clip.scale ?? 1})`,
                   pointerEvents: 'auto',
                   outline: selectedPortraitClipId === clip.id ? '2px solid #3b82f6' : 'none',
                   outlineOffset: '2px',
@@ -864,6 +920,22 @@ defineExpose({
                     <!-- Handle circle -->
                     <div
                       class="size-5 shrink-0 rounded-full border-2 border-white bg-blue-500 shadow-md transition-transform hover:scale-110 active:scale-95"
+                    />
+                  </div>
+
+                  <!-- Resize handle (only on selected clip — bottom-right corner) -->
+                  <div
+                    v-if="selectedPortraitClipId === clip.id"
+                    class="absolute z-30 flex items-center justify-center"
+                    style="right: -10px; bottom: -10px"
+                    :class="{
+                      'cursor-nwse-resize': portraitResizeState?.clipId !== clip.id,
+                      'cursor-nwse-resize': portraitResizeState?.clipId === clip.id,
+                    }"
+                    @pointerdown.stop="startPortraitResize(clip, $event)"
+                  >
+                    <div
+                      class="size-5 rounded-sm border-2 border-white bg-blue-500 shadow-md transition-transform hover:scale-110 active:scale-95"
                     />
                   </div>
                 </div>
