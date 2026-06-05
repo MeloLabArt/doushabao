@@ -17,10 +17,6 @@ import {
   loadWorkspaceImage,
   saveWorkspaceImage,
 } from '@/lib/workspace-image-storage'
-import {
-  deleteWorkspaceVideoFile,
-} from '@/lib/workspace-video-storage'
-import { clearPortraitData, restorePortraitDataFromWorkspace } from '@/lib/workspace-portrait'
 
 export const savedWorkspacesRevision = ref(0)
 
@@ -155,9 +151,8 @@ export async function deleteWorkspace(id: string): Promise<void> {
   delete cache[id]
   saveToCache(cache)
 
-  // Delete image & video
+  // Delete image
   await deleteWorkspaceImage(id)
-  await deleteWorkspaceVideoFile(id)
   notifySavedWorkspacesChanged()
 
   // Update last workspace
@@ -214,7 +209,6 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
   }
 
   // Cache metadata only (strip sourceImage — stored separately)
-  // Video data is stored as a raw binary file on the backend, not inline.
   const cachedWorkspace = stripSourceImage({
     ...workspace,
     hasSourceImage: hasSourceImage || workspace.hasSourceImage,
@@ -233,11 +227,6 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
         title: cachedWorkspace.title,
         updatedAt: cachedWorkspace.updatedAt,
         hasSourceImage: cachedWorkspace.hasSourceImage,
-        hasSourceVideo: cachedWorkspace.hasSourceVideo,
-        workspaceType: cachedWorkspace.workspaceType,
-        videoWidth: cachedWorkspace.videoWidth,
-        videoHeight: cachedWorkspace.videoHeight,
-        portraitData: cachedWorkspace.portraitData ?? null,
       })
     } else {
       await createBackendWorkspace({
@@ -246,11 +235,6 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
         createdAt: cachedWorkspace.createdAt,
         updatedAt: cachedWorkspace.updatedAt,
         hasSourceImage: cachedWorkspace.hasSourceImage ?? false,
-        hasSourceVideo: cachedWorkspace.hasSourceVideo ?? false,
-        workspaceType: cachedWorkspace.workspaceType ?? 'image',
-        videoWidth: cachedWorkspace.videoWidth ?? 1080,
-        videoHeight: cachedWorkspace.videoHeight ?? 1920,
-        portraitData: cachedWorkspace.portraitData ?? null,
       })
     }
   } catch {
@@ -291,13 +275,6 @@ export async function syncWorkspacesFromBackend(): Promise<number> {
           createdAt: w.createdAt,
           updatedAt: w.updatedAt,
           hasSourceImage: w.hasSourceImage,
-          hasSourceVideo: w.hasSourceVideo,
-          workspaceType: w.workspaceType,
-          videoWidth: w.videoWidth,
-          videoHeight: w.videoHeight,
-        }
-        if (w.portraitData) {
-          cached.portraitData = w.portraitData
         }
         cache[w.id] = cached
         count++

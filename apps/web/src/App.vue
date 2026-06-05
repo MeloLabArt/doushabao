@@ -8,11 +8,10 @@ import RouteTransition from '@/components/RouteTransition.vue'
 import CloseUnsavedWorkspaceDialog from '@/components/CloseUnsavedWorkspaceDialog.vue'
 import SaveWorkspaceDialog from '@/components/SaveWorkspaceDialog.vue'
 import SavedProjectSidebar from '@/components/SavedProjectSidebar.vue'
-import VideoDimensionPicker from '@/components/VideoDimensionPicker.vue'
 import WorkspaceRightSidebar from '@/components/WorkspaceRightSidebar.vue'
 import TabBar from '@/components/TabBar.vue'
 import TopBar from '@/components/TopBar.vue'
-import { openNewWorkspace, openNewVideoWorkspace, openNewWorkspaceWithImage } from '@/lib/open-new-workspace'
+import { openNewWorkspace, openNewWorkspaceWithImage } from '@/lib/open-new-workspace'
 import { pickImageFile, readImageFileAsDataUrl } from '@/lib/read-image-file'
 import { handleAppShortcut } from '@/lib/app-shortcuts'
 import { canExportWorkspace, exportWorkspaceImage } from '@/lib/export-workspace-image'
@@ -59,7 +58,6 @@ const closeTargetTabId = ref<string | null>(null)
 const sidebarVisible = ref(true)
 const rightSidebarVisible = ref(true)
 const openImageInputRef = ref<HTMLInputElement | null>(null)
-const videoDimensionDialogOpen = ref(false)
 
 const appTabs = computed(() => {
   // Read reactive deps: workspace cache + open tabs + dirty state
@@ -219,11 +217,6 @@ async function handleOpenImageInput(event: Event): Promise<void> {
 function handleFileAction(action: 'new-workspace' | 'new-video-workspace' | 'open' | 'save' | 'export-image') {
   if (action === 'new-workspace') {
     openNewWorkspace(router)
-    return
-  }
-
-  if (action === 'new-video-workspace') {
-    videoDimensionDialogOpen.value = true
     return
   }
 
@@ -522,14 +515,6 @@ async function handleDeleteProject(workspaceId: string): Promise<void> {
   }
 }
 
-function handleVideoDimensionConfirm(width: number, height: number): void {
-  videoDimensionDialogOpen.value = false
-  openNewVideoWorkspace(router, width, height)
-}
-
-function handleVideoDimensionCancel(): void {
-  videoDimensionDialogOpen.value = false
-}
 </script>
 
 <template>
@@ -586,12 +571,6 @@ function handleVideoDimensionCancel(): void {
       @save="saveCloseUnsavedWorkspace"
       @discard="discardCloseUnsavedWorkspace"
       @cancel="cancelCloseUnsavedWorkspace"
-    />
-
-    <VideoDimensionPicker
-      :open="videoDimensionDialogOpen"
-      @confirm="handleVideoDimensionConfirm"
-      @cancel="handleVideoDimensionCancel"
     />
 
     <input

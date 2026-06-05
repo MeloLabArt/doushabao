@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 
-import sqlalchemy as sa
 from sqlmodel import Field, Session, SQLModel, create_engine
 
 # ── Data directory (override via DOUSHABAO_DATA_DIR for Docker) ──
@@ -33,7 +32,7 @@ class AppConfig(SQLModel, table=True):
 
 
 class WorkspaceRecord(SQLModel, table=True):
-    """Saved workspace metadata (image/video data stored on filesystem)."""
+    """Saved workspace metadata (image data stored on filesystem)."""
 
     __tablename__ = "workspaces"
 
@@ -42,11 +41,6 @@ class WorkspaceRecord(SQLModel, table=True):
     created_at: int = Field(default=0)
     updated_at: int = Field(default=0)
     has_source_image: bool = Field(default=False)
-    has_source_video: bool = Field(default=False)
-    workspace_type: str = Field(default="image")
-    video_width: int = Field(default=1080)
-    video_height: int = Field(default=1920)
-    portrait_data: str | None = Field(default=None, sa_type=sa.Text)
 
 
 def get_session() -> Session:
@@ -57,29 +51,6 @@ def init_db() -> None:
     """Create tables and ensure the singleton row exists."""
     SQLModel.metadata.create_all(engine)
     os.makedirs(WORKSPACE_IMAGES_DIR, exist_ok=True)
-    os.makedirs(WORKSPACE_VIDEOS_DIR, exist_ok=True)
-
-    # Migrate: add workspace_type column if missing
-    from sqlalchemy import inspect, text
-    inspector = inspect(engine)
-    columns = [c["name"] for c in inspector.get_columns("workspaces")]
-    if "workspace_type" not in columns:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE workspaces ADD COLUMN workspace_type TEXT NOT NULL DEFAULT 'image'"))
-            conn.commit()
-    if "video_width" not in columns:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE workspaces ADD COLUMN video_width INTEGER NOT NULL DEFAULT 1080"))
-            conn.execute(text("ALTER TABLE workspaces ADD COLUMN video_height INTEGER NOT NULL DEFAULT 1920"))
-            conn.commit()
-    if "has_source_video" not in columns:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE workspaces ADD COLUMN has_source_video BOOLEAN NOT NULL DEFAULT false"))
-            conn.commit()
-    if "portrait_data" not in columns:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE workspaces ADD COLUMN portrait_data TEXT"))
-            conn.commit()
 
     with Session(engine) as session:
         row = session.get(AppConfig, 1)
@@ -129,72 +100,3 @@ def load_workspace_image_file(workspace_id: str) -> str | None:
 
 def delete_workspace_image_file(workspace_id: str) -> None:
     save_workspace_image_file(workspace_id, None)
-
-
-# ── Workspace video file helpers ───────────────────────────────
-#
-# Videos are stored as raw binary files (not base64 JSON) because
-# data URLs for video are impractically large. A sidecar JSON file
-# tracks the content type.
-
-if _DATA_DIR:
-    WORKSPACE_VIDEOS_DIR = os.path.join(_DATA_DIR, "workspace_videos")
-else:
-    WORKSPACE_VIDEOS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "workspace_videos")
-
-
-def get_workspace_video_path(workspace_id: str) -> str:
-    os.makedirs(WORKSPACE_VIDEOS_DIR, exist_ok=True)
-    return os.path.join(WORKSPACE_VIDEOS_DIR, f"{workspace_id}.bin")
-
-
-def get_workspace_video_meta_path(workspace_id: str) -> str:
-    return os.path.join(WORKSPACE_VIDEOS_DIR, f"{workspace_id}.meta.json")
-
-
-def save_workspace_video_file(
-    workspace_id: str,
-    raw_bytes: bytes | None,
-    content_type: str = "video/mp4",
-) -> None:
-    """Write raw video bytes + sidecar metadata file."""
-    bin_path = get_workspace_video_path(workspace_id)
-    meta_path = get_workspace_video_meta_path(workspace_id)
-
-    if raw_bytes is None:
-        # Delete both files
-        for p in (bin_path, meta_path):
-            if os.path.isfile(p):
-                os.remove(p)
-        return
-
-    with open(bin_path, "wb") as f:
-        f.write(raw_bytes)
-    with open(meta_path, "w") as f:
-        json.dump({"contentType": content_type}, f)
-
-
-def load_workspace_video_file(workspace_id: str) -> bytes | None:
-    """Read raw video bytes. Returns None if not found."""
-    path = get_workspace_video_path(workspace_id)
-    if not os.path.isfile(path):
-        return None
-    with open(path, "rb") as f:
-        return f.read()
-
-
-def load_workspace_video_meta(workspace_id: str) -> str | None:
-    """Read video content type from sidecar metadata."""
-    path = get_workspace_video_meta_path(workspace_id)
-    if not os.path.isfile(path):
-        return None
-    try:
-        with open(path) as f:
-            data = json.load(f)
-            return data.get("contentType")
-    except (json.JSONDecodeError, KeyError):
-        return None
-
-
-def delete_workspace_video_file(workspace_id: str) -> None:
-    save_workspace_video_file(workspace_id, None)

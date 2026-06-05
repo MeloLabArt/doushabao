@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlmodel import Session, select
@@ -11,13 +11,9 @@ from sqlmodel import Session, select
 from ..models.settings import (
     WorkspaceRecord,
     delete_workspace_image_file,
-    delete_workspace_video_file,
     get_session,
     load_workspace_image_file,
-    load_workspace_video_file,
-    load_workspace_video_meta,
     save_workspace_image_file,
-    save_workspace_video_file,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,11 +30,6 @@ class WorkspaceOut(BaseModel):
     createdAt: int
     updatedAt: int
     hasSourceImage: bool = False
-    hasSourceVideo: bool = False
-    workspaceType: str = "image"
-    videoWidth: int = 1080
-    videoHeight: int = 1920
-    portraitData: str | None = None
 
 
 class WorkspaceCreate(BaseModel):
@@ -47,22 +38,12 @@ class WorkspaceCreate(BaseModel):
     createdAt: int
     updatedAt: int
     hasSourceImage: bool = False
-    hasSourceVideo: bool = False
-    workspaceType: str = "image"
-    videoWidth: int = 1080
-    videoHeight: int = 1920
-    portraitData: str | None = None
 
 
 class WorkspaceUpdate(BaseModel):
     title: str | None = None
     updatedAt: int | None = None
     hasSourceImage: bool | None = None
-    hasSourceVideo: bool | None = None
-    workspaceType: str | None = None
-    videoWidth: int | None = None
-    videoHeight: int | None = None
-    portraitData: str | None = None
 
 
 class WorkspaceList(BaseModel):
@@ -72,10 +53,6 @@ class WorkspaceList(BaseModel):
 class WorkspaceImageResponse(BaseModel):
     image: str | None = None
 
-# ── Video Schemas ─────────────────────────────────────────────────
-
-class WorkspaceVideoResponse(BaseModel):
-    video: str | None = None
 
 # ── Helpers ────────────────────────────────────────────────────
 
@@ -87,11 +64,6 @@ def _to_out(record: WorkspaceRecord) -> WorkspaceOut:
         createdAt=record.created_at,
         updatedAt=record.updated_at,
         hasSourceImage=record.has_source_image,
-        hasSourceVideo=record.has_source_video,
-        workspaceType=record.workspace_type,
-        videoWidth=record.video_width if record.video_width is not None else 1080,
-        videoHeight=record.video_height if record.video_height is not None else 1920,
-        portraitData=record.portrait_data,
     )
 
 
@@ -129,10 +101,6 @@ def create_workspace(body: WorkspaceCreate, db: Session = Depends(get_db)):
         created_at=body.createdAt,
         updated_at=body.updatedAt,
         has_source_image=body.hasSourceImage,
-        workspace_type=body.workspaceType,
-        video_width=body.videoWidth,
-        video_height=body.videoHeight,
-        portrait_data=body.portraitData,
     )
     db.add(record)
     db.commit()
@@ -157,16 +125,6 @@ def update_workspace(
         record.updated_at = body.updatedAt
     if body.hasSourceImage is not None:
         record.has_source_image = body.hasSourceImage
-    if body.hasSourceVideo is not None:
-        record.has_source_video = body.hasSourceVideo
-    if body.workspaceType is not None:
-        record.workspace_type = body.workspaceType
-    if body.videoWidth is not None:
-        record.video_width = body.videoWidth
-    if body.videoHeight is not None:
-        record.video_height = body.videoHeight
-    if body.portraitData is not None:
-        record.portrait_data = body.portraitData
 
     db.add(record)
     db.commit()
@@ -181,7 +139,6 @@ def delete_workspace(workspace_id: str, db: Session = Depends(get_db)):
         db.delete(record)
         db.commit()
     delete_workspace_image_file(workspace_id)
-    delete_workspace_video_file(workspace_id)
     return {"ok": True}
 
 
@@ -204,39 +161,4 @@ def save_workspace_image(workspace_id: str, body: dict[str, Any]):
 @router.delete("/{workspace_id}/image")
 def delete_workspace_image(workspace_id: str):
     delete_workspace_image_file(workspace_id)
-    return {"ok": True}
-
-
-# ── Video routes ───────────────────────────────────────────────
-
-
-@router.get("/{workspace_id}/video")
-def get_workspace_video(workspace_id: str):
-    """Serve raw video file with detected content type."""
-    from fastapi.responses import Response
-
-    raw = load_workspace_video_file(workspace_id)
-    if raw is None:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Video not found")
-
-    content_type = load_workspace_video_meta(workspace_id) or "video/mp4"
-    return Response(content=raw, media_type=content_type)
-
-
-@router.put("/{workspace_id}/video")
-async def save_workspace_video(workspace_id: str, file: UploadFile):
-    """Accept a raw video file upload and store it on disk."""
-    raw_bytes = await file.read()
-    save_workspace_video_file(
-        workspace_id,
-        raw_bytes,
-        content_type=file.content_type or "video/mp4",
-    )
-    return {"ok": True}
-
-
-@router.delete("/{workspace_id}/video")
-def delete_workspace_video(workspace_id: str):
-    delete_workspace_video_file(workspace_id)
     return {"ok": True}

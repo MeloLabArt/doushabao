@@ -113,8 +113,6 @@ const hasImage = computed(
   () => Boolean(workspace.value?.sourceImage || workspace.value?.hasSourceImage),
 )
 
-const isVideoWorkspace = computed(() => workspace.value?.workspaceType === 'video')
-
 const isRunning = computed(() => {
   workspaceUiRevision.value
 
@@ -374,10 +372,9 @@ const inputClass = 'app-field resize-none'
     <div class="border-b border-app-border px-3 py-2.5">
       <div class="flex items-center justify-between gap-2">
         <h2 class="text-xs font-medium tracking-wide text-app-muted uppercase">
-          {{ isVideoWorkspace ? t('editorPanel.videoTitle') : t('editorPanel.title') }}
+          {{ t('editorPanel.title') }}
         </h2>
         <div
-          v-if="!isVideoWorkspace"
           class="app-segmented"
           role="tablist"
           :aria-label="t('editorPanel.modeLabel')"
@@ -407,16 +404,6 @@ const inputClass = 'app-field resize-none'
       <p v-else-if="!hasImage" class="px-1 py-6 text-center text-xs text-app-subtle">
         {{ t('editorPanel.uploadFirst') }}
       </p>
-
-      <!-- Video workspace — not yet developed -->
-      <div v-else-if="isVideoWorkspace" class="flex flex-1 items-center justify-center px-4">
-        <div class="flex flex-col items-center gap-3 text-center">
-          <div class="rounded-lg border border-dashed border-app-border bg-app-surface/50 px-6 py-8">
-            <p class="text-sm font-medium text-app-muted">{{ t('editorPanel.videoNotAvailable') }}</p>
-            <p class="mt-2 text-xs text-app-subtle">{{ t('editorPanel.videoNotAvailableHint') }}</p>
-          </div>
-        </div>
-      </div>
 
       <div v-else-if="editMode === 'editor'" class="flex flex-col gap-3">
         <p class="text-xs leading-relaxed text-app-muted">

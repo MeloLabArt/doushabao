@@ -17,7 +17,6 @@ import {
   recordWorkspaceImageHistory,
 } from '@/lib/workspace-image-history'
 import { clearWorkspaceEditorMarks, clearWorkspaceUiState, removeWorkspaceUiState } from '@/lib/workspace-ui-state'
-import { clearPortraitData, clearPortraitHistory, syncPortraitDataToWorkspace } from '@/lib/workspace-portrait'
 
 export { canUndoWorkspaceImage, recordWorkspaceImageHistory } from '@/lib/workspace-image-history'
 
@@ -97,30 +96,6 @@ export function stageWorkspaceChanges(workspace: Workspace): void {
 export const workspaceImageRevisions = ref<Record<string, number>>({})
 export const workspaceContentRevision = ref(0)
 export const workspaceEditingIds = ref<Set<string>>(new Set())
-
-// Video object URL registry — tracks blob: URLs per workspace so they can be
-// revoked when a workspace tab is closed (necessary because KeepAlive prevents
-// component onUnmounted from firing on tab close).
-const videoObjectUrls: Record<string, string> = {}
-export const workspaceVideoRevisions = ref(0)
-
-export function setVideoObjectUrl(id: string, url: string): void {
-  const prev = videoObjectUrls[id]
-  if (prev) URL.revokeObjectURL(prev)
-  videoObjectUrls[id] = url
-  workspaceVideoRevisions.value++
-}
-
-export function getVideoObjectUrl(id: string): string | undefined {
-  return videoObjectUrls[id]
-}
-
-export function clearVideoObjectUrl(id: string): void {
-  const url = videoObjectUrls[id]
-  if (url) URL.revokeObjectURL(url)
-  delete videoObjectUrls[id]
-  workspaceVideoRevisions.value++
-}
 
 export function getWorkspaceImageRevision(workspaceId: string): number {
   return workspaceImageRevisions.value[workspaceId] ?? 0
@@ -238,9 +213,7 @@ export function removeOpenWorkspace(id: string): void {
 }
 
 export async function persistWorkspace(workspace: Workspace): Promise<void> {
-  // Merge in-memory portrait data into the workspace before saving
-  const workspaceWithPortraits = syncPortraitDataToWorkspace(workspace.id, workspace)
-  await saveWorkspace(workspaceWithPortraits)
+  await saveWorkspace(workspace)
   draftWorkspaces.delete(workspace.id)
   markWorkspaceClean(workspace.id)
   openTabIds.value = [...openTabIds.value]
@@ -293,8 +266,6 @@ export function closeTab(id: string): string | null {
     discardWorkspace(id)
     markWorkspaceClean(id)
     clearWorkspaceImageHistory(id)
-    clearVideoObjectUrl(id)
-    clearPortraitData(id)
   }
 
   return nextId
