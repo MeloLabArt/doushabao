@@ -662,7 +662,12 @@ defineExpose({
 
 <template>
   <section v-if="workspaceRecord" class="app-workspace">
-    <p v-if="isLoadingImage" class="flex flex-1 items-center justify-center text-sm text-app-muted">
+    <!-- Loading image (image workspaces only — video renders independently) -->
+    <p v-if="isLoadingImage && workspaceRecord.workspaceType !== 'video'" class="flex flex-1 items-center justify-center text-sm text-app-muted">
+      {{ t('workspace.loadingImage') }}
+    </p>
+    <!-- Loading video (shown until video blob loads from backend) -->
+    <p v-else-if="isLoadingVideo && workspaceRecord.workspaceType === 'video'" class="flex flex-1 items-center justify-center text-sm text-app-muted">
       {{ t('workspace.loadingImage') }}
     </p>
     <!-- video workspace — blank canvas -->
@@ -1015,5 +1020,29 @@ defineExpose({
         </div>
       </div>
     </div>
+    <!-- Fallback: hasImage is true but no image data (hydration failed) -->
+    <div v-else class="flex flex-1 items-center justify-center p-6">
+      <div class="flex flex-col items-center gap-3 text-center">
+        <p class="text-sm text-app-muted">{{ t('workspace.replaceImage') }}</p>
+        <input
+          ref="replaceInputRef"
+          type="file"
+          accept="image/*"
+          class="hidden"
+          @change="handleReplaceInput"
+        />
+        <button
+          type="button"
+          class="rounded-md border border-app-border bg-app-surface px-3 py-1.5 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
+          @click="openReplacePicker"
+        >
+          {{ t('workspace.replaceImage') }}
+        </button>
+      </div>
+    </div>
   </section>
+  <!-- Loading state: workspace record not yet available -->
+  <div v-else class="flex flex-1 items-center justify-center">
+    <LoaderCircle :size="24" :stroke-width="1.75" class="animate-spin text-app-muted" />
+  </div>
 </template>
