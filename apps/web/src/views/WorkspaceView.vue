@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { LoaderCircle, Maximize2, Minimize2, Play, Pause } from '@lucide/vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -711,6 +711,19 @@ onUnmounted(() => {
   clearVideoObjectUrl(props.workspaceId)
 })
 
+/**
+ * Re-run hydration when the component is reactivated by KeepAlive.
+ * This is necessary because closeTab() clears the video object URL and portrait
+ * data in workspace-session, but the component instance is kept alive —
+ * the watch with `immediate: true` already fired during setup and may not
+ * re-fire if none of its reactive dependencies have changed.
+ */
+onActivated(() => {
+  void syncHydratedImage()
+  void syncHydratedVideo()
+  syncHydratedPortrait()
+})
+
 defineExpose({
   commitWorkspaceChanges,
 })
@@ -726,9 +739,9 @@ defineExpose({
     <p v-else-if="isLoadingVideo && workspaceRecord.workspaceType === 'video'" class="flex flex-1 items-center justify-center text-sm text-app-muted">
       {{ t('workspace.loadingImage') }}
     </p>
-    <!-- video workspace — blank canvas -->
+    <!-- video workspace -->
     <div
-      v-else-if="workspaceRecord.workspaceType === 'video' && !hasBackground"
+      v-else-if="workspaceRecord.workspaceType === 'video'"
       class="flex min-h-0 flex-1 flex-col"
     >
       <div class="app-workspace-toolbar">
@@ -742,58 +755,6 @@ defineExpose({
         <button
           type="button"
           class="rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
-          @click="openReplacePicker"
-        >
-          {{ t('workspace.replaceBackground') }}
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
-          @click="portraitInputRef?.click()"
-        >
-          <ImagePlus :size="13" :stroke-width="1.75" />
-          {{ t('portrait.addPortrait') }}
-        </button>
-        <input
-          ref="portraitInputRef"
-          type="file"
-          accept="image/*"
-          multiple
-          class="hidden"
-          @change="handlePortraitUpload"
-        />
-      </div>
-      <div class="flex flex-1 items-center justify-center p-6">
-        <div
-          class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-app-border bg-app-surface/50 p-10"
-        >
-          <p class="text-sm font-medium text-app-muted">
-            {{ workspaceRecord.videoWidth }} × {{ workspaceRecord.videoHeight }}
-          </p>
-          <p class="mt-0.5 text-xs text-app-subtle">{{ videoAspectRatio }}</p>
-          <p class="mt-2 text-xs text-app-subtle">
-            {{ t('videoDimension.blankCanvas') }}
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- video workspace — has background -->
-    <div
-      v-else-if="workspaceRecord.workspaceType === 'video' && hasBackground"
-      class="flex min-h-0 flex-1 flex-col"
-    >
-      <div class="app-workspace-toolbar">
-        <input
-          ref="replaceInputRef"
-          type="file"
-          accept="image/*,video/*"
-          class="hidden"
-          @change="handleReplaceInput"
-        />
-        <button
-          type="button"
-          class="rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground disabled:cursor-not-allowed disabled:opacity-50"
           @click="openReplacePicker"
         >
           {{ t('workspace.replaceBackground') }}
@@ -1015,6 +976,23 @@ defineExpose({
           :alt="t('workspace.image')"
           class="h-full"
         />
+        <!-- Blank canvas (no background loaded yet) -->
+        <div
+          v-else
+          class="flex h-full w-full items-center justify-center"
+        >
+          <div
+            class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-app-border bg-app-surface/50 p-10"
+          >
+            <p class="text-sm font-medium text-app-muted">
+              {{ workspaceRecord.videoWidth }} × {{ workspaceRecord.videoHeight }}
+            </p>
+            <p class="mt-0.5 text-xs text-app-subtle">{{ videoAspectRatio }}</p>
+            <p class="mt-2 text-xs text-app-subtle">
+              {{ t('videoDimension.blankCanvas') }}
+            </p>
+          </div>
+        </div>
         </div>
 
         <!-- Fullscreen toggle button (shown outside fullscreen) -->
