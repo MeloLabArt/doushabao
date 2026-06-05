@@ -44,6 +44,9 @@ import {
   getPortraitClips,
   removePortraitClip,
   splitPortraitClip,
+  canUndoPortraitChange,
+  restorePortraitDataFromWorkspace,
+  undoPortraitChange,
   updatePortraitClip,
   workspacePortraitRevision,
   type PortraitClip,
@@ -203,6 +206,12 @@ async function syncHydratedVideo(): Promise<void> {
   } finally {
     isLoadingVideo.value = false
   }
+}
+
+function syncHydratedPortrait(): void {
+  const record = workspaceRecord.value
+  if (!record) return
+  restorePortraitDataFromWorkspace(record)
 }
 
 async function commitWorkspaceChanges(nextWorkspace: Workspace): Promise<void> {
@@ -468,12 +477,29 @@ watch(videoCurrentTime, (t) => {
   }
 })
 
+// ── Portrait Undo (Ctrl+Z) ───────────────────────────────────
+
+function onPortraitKeyDown(event: KeyboardEvent): void {
+  // Don't intercept Ctrl+Z in text inputs
+  const target = event.target as HTMLElement
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+
+  if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+    if (isVideoWorkspace.value && canUndoPortraitChange(props.workspaceId)) {
+      event.preventDefault()
+      undoPortraitChange(props.workspaceId)
+    }
+  }
+}
+
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
+  document.addEventListener('keydown', onPortraitKeyDown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+  document.removeEventListener('keydown', onPortraitKeyDown)
   if (fsHideTimer) clearTimeout(fsHideTimer)
 })
 
@@ -482,6 +508,7 @@ watch(
   () => {
     void syncHydratedImage()
     void syncHydratedVideo()
+    syncHydratedPortrait()
   },
   { immediate: true },
 )

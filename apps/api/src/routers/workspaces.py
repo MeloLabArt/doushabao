@@ -38,6 +38,7 @@ class WorkspaceOut(BaseModel):
     workspaceType: str = "image"
     videoWidth: int = 1080
     videoHeight: int = 1920
+    portraitData: str | None = None
 
 
 class WorkspaceCreate(BaseModel):
@@ -50,6 +51,7 @@ class WorkspaceCreate(BaseModel):
     workspaceType: str = "image"
     videoWidth: int = 1080
     videoHeight: int = 1920
+    portraitData: str | None = None
 
 
 class WorkspaceUpdate(BaseModel):
@@ -60,6 +62,7 @@ class WorkspaceUpdate(BaseModel):
     workspaceType: str | None = None
     videoWidth: int | None = None
     videoHeight: int | None = None
+    portraitData: str | None = None
 
 
 class WorkspaceList(BaseModel):
@@ -88,6 +91,7 @@ def _to_out(record: WorkspaceRecord) -> WorkspaceOut:
         workspaceType=record.workspace_type,
         videoWidth=record.video_width if record.video_width is not None else 1080,
         videoHeight=record.video_height if record.video_height is not None else 1920,
+        portraitData=record.portrait_data,
     )
 
 
@@ -128,6 +132,7 @@ def create_workspace(body: WorkspaceCreate, db: Session = Depends(get_db)):
         workspace_type=body.workspaceType,
         video_width=body.videoWidth,
         video_height=body.videoHeight,
+        portrait_data=body.portraitData,
     )
     db.add(record)
     db.commit()
@@ -160,6 +165,8 @@ def update_workspace(
         record.video_width = body.videoWidth
     if body.videoHeight is not None:
         record.video_height = body.videoHeight
+    if body.portraitData is not None:
+        record.portrait_data = body.portraitData
 
     db.add(record)
     db.commit()

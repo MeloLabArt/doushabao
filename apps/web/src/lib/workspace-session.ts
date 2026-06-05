@@ -17,6 +17,7 @@ import {
   recordWorkspaceImageHistory,
 } from '@/lib/workspace-image-history'
 import { clearWorkspaceEditorMarks, clearWorkspaceUiState, removeWorkspaceUiState } from '@/lib/workspace-ui-state'
+import { clearPortraitData, clearPortraitHistory, syncPortraitDataToWorkspace } from '@/lib/workspace-portrait'
 
 export { canUndoWorkspaceImage, recordWorkspaceImageHistory } from '@/lib/workspace-image-history'
 
@@ -237,7 +238,9 @@ export function removeOpenWorkspace(id: string): void {
 }
 
 export async function persistWorkspace(workspace: Workspace): Promise<void> {
-  await saveWorkspace(workspace)
+  // Merge in-memory portrait data into the workspace before saving
+  const workspaceWithPortraits = syncPortraitDataToWorkspace(workspace.id, workspace)
+  await saveWorkspace(workspaceWithPortraits)
   draftWorkspaces.delete(workspace.id)
   markWorkspaceClean(workspace.id)
   openTabIds.value = [...openTabIds.value]
@@ -291,6 +294,7 @@ export function closeTab(id: string): string | null {
     markWorkspaceClean(id)
     clearWorkspaceImageHistory(id)
     clearVideoObjectUrl(id)
+    clearPortraitData(id)
   }
 
   return nextId

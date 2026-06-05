@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 
+import sqlalchemy as sa
 from sqlmodel import Field, Session, SQLModel, create_engine
 
 # ── Data directory (override via DOUSHABAO_DATA_DIR for Docker) ──
@@ -45,6 +46,7 @@ class WorkspaceRecord(SQLModel, table=True):
     workspace_type: str = Field(default="image")
     video_width: int = Field(default=1080)
     video_height: int = Field(default=1920)
+    portrait_data: str | None = Field(default=None, sa_type=sa.Text)
 
 
 def get_session() -> Session:
@@ -73,6 +75,10 @@ def init_db() -> None:
     if "has_source_video" not in columns:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE workspaces ADD COLUMN has_source_video BOOLEAN NOT NULL DEFAULT false"))
+            conn.commit()
+    if "portrait_data" not in columns:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE workspaces ADD COLUMN portrait_data TEXT"))
             conn.commit()
 
     with Session(engine) as session:

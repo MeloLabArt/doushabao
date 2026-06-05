@@ -9,6 +9,7 @@ export type Workspace = {
   workspaceType?: string
   videoWidth?: number
   videoHeight?: number
+  portraitData?: string // JSON-serialized portrait assets + clips
 }
 
 export type WorkspaceTabItem = {

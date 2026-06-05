@@ -20,6 +20,7 @@ import {
 import {
   deleteWorkspaceVideoFile,
 } from '@/lib/workspace-video-storage'
+import { clearPortraitData, restorePortraitDataFromWorkspace } from '@/lib/workspace-portrait'
 
 export const savedWorkspacesRevision = ref(0)
 
@@ -236,6 +237,7 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
         workspaceType: cachedWorkspace.workspaceType,
         videoWidth: cachedWorkspace.videoWidth,
         videoHeight: cachedWorkspace.videoHeight,
+        portraitData: cachedWorkspace.portraitData ?? null,
       })
     } else {
       await createBackendWorkspace({
@@ -248,6 +250,7 @@ export async function saveWorkspace(workspace: Workspace): Promise<void> {
         workspaceType: cachedWorkspace.workspaceType ?? 'image',
         videoWidth: cachedWorkspace.videoWidth ?? 1080,
         videoHeight: cachedWorkspace.videoHeight ?? 1920,
+        portraitData: cachedWorkspace.portraitData ?? null,
       })
     }
   } catch {
@@ -282,7 +285,7 @@ export async function syncWorkspacesFromBackend(): Promise<number> {
 
     for (const w of backend) {
       if (!cache[w.id]) {
-        cache[w.id] = {
+        const cached: Workspace = {
           id: w.id,
           title: w.title,
           createdAt: w.createdAt,
@@ -293,6 +296,10 @@ export async function syncWorkspacesFromBackend(): Promise<number> {
           videoWidth: w.videoWidth,
           videoHeight: w.videoHeight,
         }
+        if (w.portraitData) {
+          cached.portraitData = w.portraitData
+        }
+        cache[w.id] = cached
         count++
       }
     }

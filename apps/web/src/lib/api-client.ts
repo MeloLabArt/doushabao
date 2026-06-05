@@ -219,6 +219,7 @@ export interface ApiWorkspace {
   workspaceType: string
   videoWidth: number
   videoHeight: number
+  portraitData: string | null
 }
 
 export interface ApiWorkspaceList {
@@ -242,7 +243,7 @@ export async function createBackendWorkspace(
 
 export async function updateBackendWorkspace(
   id: string,
-  data: Partial<Pick<ApiWorkspace, 'title' | 'updatedAt' | 'hasSourceImage' | 'hasSourceVideo' | 'workspaceType' | 'videoWidth' | 'videoHeight'>>,
+  data: Partial<Pick<ApiWorkspace, 'title' | 'updatedAt' | 'hasSourceImage' | 'hasSourceVideo' | 'workspaceType' | 'videoWidth' | 'videoHeight' | 'portraitData'>>,
 ): Promise<ApiWorkspace> {
   return apiJson<ApiWorkspace>('PUT', `/api/v1/workspaces/${encodeURIComponent(id)}`, data)
 }
