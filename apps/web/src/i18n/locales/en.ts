@@ -171,6 +171,13 @@ const en = {
     pause: 'Pause',
     split: 'Split',
   },
+  portrait: {
+    addPortrait: 'Add Portrait',
+    addToTimeline: 'Add to timeline',
+    copy: 'Copy',
+    split: 'Split',
+    delete: 'Delete',
+  },
   editorPanel: {
     title: 'Edit',
     videoTitle: 'Video Tools',

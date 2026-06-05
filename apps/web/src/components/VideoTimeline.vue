@@ -3,6 +3,8 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { Play, Pause, ZoomIn, ZoomOut } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import gsap from 'gsap'
+import PortraitTimelineTrack from './PortraitTimelineTrack.vue'
+import type { PortraitClip } from '@/lib/workspace-portrait'
 
 const { t } = useI18n()
 
@@ -11,11 +13,15 @@ const props = withDefaults(
     duration?: number
     currentTime?: number
     playing?: boolean
+    portraitClips?: PortraitClip[]
+    selectedClipId?: string | null
   }>(),
   {
     duration: 0,
     currentTime: 0,
     playing: false,
+    portraitClips: () => [],
+    selectedClipId: null,
   },
 )
 
@@ -23,6 +29,11 @@ const emit = defineEmits<{
   play: []
   pause: []
   seek: [time: number]
+  'update:portraitClip': [clipId: string, updates: Partial<PortraitClip>]
+  'split:portraitClip': [clipId: string, time: number]
+  'copy:portraitClip': [clipId: string]
+  'delete:portraitClip': [clipId: string]
+  'select:portraitClip': [clipId: string | null]
 }>()
 
 const scrollRef = ref<HTMLDivElement | null>(null)
@@ -135,11 +146,13 @@ function clientXToTime(clientX: number): number {
 
 // ── Interactions ─────────────────────────────────────────────
 
-/** Click on the track → animate playhead there + seek. */
+/** Click on the track → instantly jump playhead there + seek. */
 function onTrackClick(event: MouseEvent): void {
   if (isDragging.value) return
   const target = clientXToTime(event.clientX)
-  animateSeek(target)
+  seekTween?.kill()
+  seekTween = null
+  smoothTime.value = target
   emit('seek', target)
 }
 
@@ -159,14 +172,15 @@ function onPlayheadPointerMove(event: PointerEvent): void {
   emit('seek', t)
 }
 
-/** End drag. */
+/** End drag — snap instantly. */
 function onPlayheadPointerUp(event: PointerEvent): void {
   if (!isDragging.value) return
   isDragging.value = false
   playheadRef.value?.releasePointerCapture(event.pointerId)
   const target = clientXToTime(event.clientX)
-  smoothTime.value = target // snap to final position
-  animateSeek(target)
+  seekTween?.kill()
+  seekTween = null
+  smoothTime.value = target
   emit('seek', target)
 }
 
@@ -178,6 +192,40 @@ function zoomIn(): void {
 
 function zoomOut(): void {
   zoom.value = Math.max(zoom.value / 1.4, 30)
+}
+
+// ── Portrait track helpers ──────────────────────────────────
+
+const portraitTrackHeight = 28 // px per portrait track
+
+const totalPortraitTrackHeight = computed(() => {
+  return props.portraitClips.length * portraitTrackHeight
+})
+
+const timelineContentHeight = computed(() => {
+  // Ruler(22) + Video track(96) + Audio track(32) + Portrait tracks + padding
+  return 22 + 96 + 32 + totalPortraitTrackHeight.value
+})
+
+function handlePortraitUpdate(clipId: string, updates: Partial<PortraitClip>): void {
+  emit('update:portraitClip', clipId, updates)
+}
+
+function handlePortraitSplit(clipId: string): void {
+  // Use the current playhead time as the split point
+  emit('split:portraitClip', clipId, props.currentTime)
+}
+
+function handlePortraitCopy(clipId: string): void {
+  emit('copy:portraitClip', clipId)
+}
+
+function handlePortraitDelete(clipId: string): void {
+  emit('delete:portraitClip', clipId)
+}
+
+function handlePortraitSelect(clipId: string): void {
+  emit('select:portraitClip', clipId)
 }
 
 // ── Auto-scroll playhead during playback ─────────────────────
@@ -242,12 +290,12 @@ watch(
     <!-- Scrollable timeline area -->
     <div
       ref="scrollRef"
-      class="relative h-44 select-none overflow-x-auto overscroll-x-contain scrollbar-thin"
-      style="background: #141414"
+      class="relative select-none overflow-x-auto overscroll-x-contain scrollbar-thin"
+      :style="{ height: Math.max(timelineContentHeight + 16, 132) + 'px', background: '#141414' }"
     >
       <div
         class="relative"
-        :style="{ width: trackWidth + 'px', height: '100%' }"
+        :style="{ width: trackWidth + 'px', height: timelineContentHeight + 16 + 'px' }"
       >
         <!-- Ruler -->
         <div class="absolute inset-x-0 top-0 z-10" style="height: 22px">
@@ -280,12 +328,50 @@ watch(
           />
         </div>
 
-        <!-- Audio track row (placeholder) -->
+        <!-- Audio track row (clickable for seek) -->
         <div
-          class="absolute"
+          class="absolute cursor-pointer"
           :style="{ left: '0', top: '118px', right: '0', height: '32px' }"
+          @click="onTrackClick"
         >
           <div class="mt-1 h-6 rounded bg-white/5" />
+        </div>
+
+        <!-- Portrait tracks area (always rendered, clickable for seek) -->
+        <div
+          class="absolute cursor-pointer"
+          :style="{ left: '0', top: '150px', right: '0', bottom: '0' }"
+          @click="onTrackClick"
+        >
+          <!-- Track backgrounds when clips exist -->
+          <div
+            v-for="(_, idx) in Math.ceil(portraitClips.length / 1)"
+            :key="'track-' + idx"
+            class="absolute inset-x-0"
+            :style="{ top: idx * portraitTrackHeight + 'px', height: portraitTrackHeight + 'px' }"
+          >
+            <div
+              class="mx-0.5 mt-0.5 rounded"
+              :class="idx % 2 === 0 ? 'bg-white/5' : 'bg-transparent'"
+              style="height: 26px"
+            />
+          </div>
+
+          <!-- Portrait clip blocks -->
+          <PortraitTimelineTrack
+            v-for="clip in portraitClips"
+            :key="clip.id"
+            :clip="clip"
+            :duration="displayDuration"
+            :time-scale="timeScale"
+            :track-width="trackWidth"
+            :is-selected="clip.id === selectedClipId"
+            @select="handlePortraitSelect"
+            @update="handlePortraitUpdate"
+            @split="handlePortraitSplit"
+            @copy="handlePortraitCopy"
+            @delete="handlePortraitDelete"
+          />
         </div>
 
         <!-- Playhead (full height) -->

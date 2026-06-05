@@ -173,6 +173,13 @@ const ko: MessageSchema = {
     pause: '일시 정지',
     split: '분할',
   },
+  portrait: {
+    addPortrait: '입체 추가',
+    addToTimeline: '타임라인에 추가',
+    copy: '복사',
+    split: '분할',
+    delete: '삭제',
+  },
   editorPanel: {
     title: '편집',
     videoTitle: '비디오 도구',

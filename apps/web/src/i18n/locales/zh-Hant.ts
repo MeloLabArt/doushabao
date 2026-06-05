@@ -170,6 +170,13 @@ const zhHant: MessageSchema = {
     pause: '暫停',
     split: '分割',
   },
+  portrait: {
+    addPortrait: '添加立繪',
+    addToTimeline: '添加到時間線',
+    copy: '複製',
+    split: '中斷',
+    delete: '刪除',
+  },
   editorPanel: {
     title: '編輯',
     videoTitle: '影片工具',

@@ -170,6 +170,13 @@ const zhCN: MessageSchema = {
     pause: "暂停",
     split: "分割",
   },
+  portrait: {
+    addPortrait: "添加立绘",
+    addToTimeline: "添加到时间线",
+    copy: "复制",
+    split: "中断",
+    delete: "删除",
+  },
   editorPanel: {
     title: "编辑",
     videoTitle: "视频工具",

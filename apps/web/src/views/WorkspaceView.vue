@@ -36,6 +36,19 @@ import {
 import { hydrateWorkspaceImage, savedWorkspacesRevision } from '@/lib/workspace-storage'
 import { loadWorkspaceVideoBlob, saveWorkspaceVideoFile } from '@/lib/workspace-video-storage'
 import type { Workspace } from '@/types/workspace'
+import {
+  addPortraitAsset,
+  addPortraitClip,
+  copyPortraitClip,
+  getPortraitAssets,
+  getPortraitClips,
+  removePortraitClip,
+  splitPortraitClip,
+  updatePortraitClip,
+  workspacePortraitRevision,
+  type PortraitClip,
+} from '@/lib/workspace-portrait'
+import { ImagePlus } from '@lucide/vue'
 
 const props = defineProps<{
   workspaceId: string
@@ -53,6 +66,26 @@ const videoCurrentTime = ref(0)
 const videoDuration = ref(0)
 const isVideoPlaying = ref(false)
 const isLoadingVideo = ref(false)
+
+// Portrait state
+const portraitInputRef = ref<HTMLInputElement | null>(null)
+const selectedPortraitClipId = ref<string | null>(null)
+
+const portraitAssets = computed(() => {
+  workspacePortraitRevision.value
+  return getPortraitAssets(props.workspaceId)
+})
+
+const portraitClips = computed(() => {
+  workspacePortraitRevision.value
+  return getPortraitClips(props.workspaceId)
+})
+
+/** Portrait clips active at the current video time. */
+const activePortraitClips = computed(() => {
+  const t = videoCurrentTime.value
+  return portraitClips.value.filter((c) => t >= c.startTime && t < c.endTime)
+})
 
 // Blob URL for <video> display — created from uploaded file or backend download.
 const backgroundVideoUrl = computed(() => {
@@ -303,6 +336,52 @@ function handleVideoPlayPause(): void {
   }
 }
 
+// ── Portrait handlers ────────────────────────────────────────
+
+function handlePortraitUpload(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const fileArray = input.files ? Array.from(input.files) : []
+  input.value = ''
+
+  for (const file of fileArray) {
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = reader.result as string
+        const name = file.name.replace(/\.[^.]+$/, '')
+        const asset = addPortraitAsset(props.workspaceId, name, dataUrl)
+        // Automatically create a timeline clip for the new portrait
+        addPortraitClip(props.workspaceId, asset)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+}
+
+function handlePortraitUpdate(clipId: string, updates: Partial<PortraitClip>): void {
+  updatePortraitClip(props.workspaceId, clipId, updates)
+}
+
+function handlePortraitSplit(clipId: string, splitTime: number): void {
+  splitPortraitClip(props.workspaceId, clipId, splitTime)
+}
+
+function handlePortraitCopy(clipId: string): void {
+  copyPortraitClip(props.workspaceId, clipId)
+}
+
+function handlePortraitDelete(clipId: string): void {
+  // Deselect if deleting selected
+  if (selectedPortraitClipId.value === clipId) {
+    selectedPortraitClipId.value = null
+  }
+  removePortraitClip(props.workspaceId, clipId)
+}
+
+function handlePortraitSelect(clipId: string | null): void {
+  selectedPortraitClipId.value = clipId
+}
+
 // ── Fullscreen player ────────────────────────────────────────
 import gsap from 'gsap'
 
@@ -441,6 +520,22 @@ defineExpose({
         >
           {{ t('workspace.replaceBackground') }}
         </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
+          @click="portraitInputRef?.click()"
+        >
+          <ImagePlus :size="13" :stroke-width="1.75" />
+          {{ t('portrait.addPortrait') }}
+        </button>
+        <input
+          ref="portraitInputRef"
+          type="file"
+          accept="image/*"
+          multiple
+          class="hidden"
+          @change="handlePortraitUpload"
+        />
       </div>
       <div class="flex flex-1 items-center justify-center p-6">
         <div
@@ -477,7 +572,53 @@ defineExpose({
         >
           {{ t('workspace.replaceBackground') }}
         </button>
+        <input
+          ref="portraitInputRef"
+          type="file"
+          accept="image/*"
+          multiple
+          class="hidden"
+          @change="handlePortraitUpload"
+        />
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 rounded-md border border-app-border bg-app-surface px-2.5 py-1 text-xs text-app-muted transition hover:bg-app-accent hover:text-app-foreground"
+          @click="portraitInputRef?.click()"
+        >
+          <ImagePlus :size="13" :stroke-width="1.75" />
+          {{ t('portrait.addPortrait') }}
+        </button>
       </div>
+
+      <!-- Portrait assets panel -->
+      <div
+        v-if="portraitAssets.length > 0"
+        class="flex flex-wrap items-center gap-2 border-b border-white/5 px-3 py-1.5"
+      >
+        <div
+          v-for="asset in portraitAssets"
+          :key="asset.id"
+          class="group relative flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-1"
+        >
+          <img
+            :src="asset.imageDataUrl"
+            :alt="asset.name"
+            class="size-6 rounded object-cover"
+          />
+          <span class="max-w-[80px] truncate text-[11px] text-white/60">{{ asset.name }}</span>
+          <button
+            type="button"
+            class="ml-0.5 inline-flex size-4 items-center justify-center rounded text-white/30 transition hover:bg-white/10 hover:text-white/70"
+            :title="t('portrait.addToTimeline')"
+            @click="addPortraitClip(props.workspaceId, asset)"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M5 2v6M2 5h6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
       <div class="app-workspace-canvas-wrap">
         <div class="app-workspace-canvas">
           <!-- Fullscreen container for video -->
@@ -499,6 +640,21 @@ defineExpose({
               @play="handleVideoPlay"
               @pause="handleVideoPause"
             />
+
+            <!-- Portrait overlays on video canvas -->
+            <div
+              v-if="activePortraitClips.length > 0"
+              class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+            >
+              <img
+                v-for="clip in activePortraitClips"
+                :key="clip.id"
+                :src="clip.imageDataUrl"
+                :alt="clip.assetName"
+                class="max-h-full max-w-full object-contain"
+                style="max-height: 80%; max-width: 80%"
+              />
+            </div>
 
             <!-- Fullscreen overlay controls -->
             <div
@@ -590,9 +746,16 @@ defineExpose({
         :current-time="videoCurrentTime"
         :duration="videoDuration"
         :playing="isVideoPlaying"
+        :portrait-clips="portraitClips"
+        :selected-clip-id="selectedPortraitClipId"
         @play="handleVideoPlayPause"
         @pause="handleVideoPlayPause"
         @seek="handleVideoSeek"
+        @update:portrait-clip="handlePortraitUpdate"
+        @split:portrait-clip="handlePortraitSplit"
+        @copy:portrait-clip="handlePortraitCopy"
+        @delete:portrait-clip="handlePortraitDelete"
+        @select:portrait-clip="handlePortraitSelect"
       />
     </div>
     <!-- image workspace — no image yet -->

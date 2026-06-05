@@ -173,6 +173,13 @@ const ja: MessageSchema = {
     pause: '一時停止',
     split: '分割',
   },
+  portrait: {
+    addPortrait: '立ち絵を追加',
+    addToTimeline: 'タイムラインに追加',
+    copy: 'コピー',
+    split: '分割',
+    delete: '削除',
+  },
   editorPanel: {
     title: '編集',
     videoTitle: 'ビデオツール',
